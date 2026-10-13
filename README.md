@@ -2,7 +2,7 @@
 
 Protocol analytics and public wallet intelligence for Perpl on Monad.
 
-**[Open the dashboard](https://perpl-analytics.vercel.app/)** · [Metric definitions](https://perpl-analytics.vercel.app/methodology) · [Deployment guide](DEPLOYMENT.md)
+**[Open the dashboard](https://perpl-analytics.vercel.app/)** · [Metric definitions](https://perpl-analytics.vercel.app/methodology)
 
 ![Perpl Analytics dashboard](docs/qa/overview.png)
 
@@ -32,33 +32,6 @@ flowchart LR
 ```
 
 Provider delays can affect freshness. Unavailable metrics appear as a dash. Historical event details have different coverage from daily aggregates; wallet leaderboard PnL is distinct from estimated unrealized position PnL. Prices currently use periodic snapshots. See the metric definitions for calculations and coverage.
-
-## Run locally
-
-Use Node.js 24:
-
-```sh
-npm ci
-npm run dev:local
-```
-
-The launcher opens a verified localhost URL and must remain running. A fresh local checkout has no local SQLite history; configure data sources and imports for local indexing. The cloud deployment instead initializes an empty database from the included checksummed summary seed. Configuration and credentials belong in ignored environment files, never in frontend code.
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for Vercel, Supabase and the five-minute scheduler.
-
-## Validation
-
-```sh
-npm run build:web
-npx tsc --noEmit
-npm run test:cloud
-node tests/web-proxy.mjs
-node tests/vercel-cloud.mjs
-node tests/cache-bounds.mjs
-node tests/analytics.mjs
-```
-
-Checks cover historical seed parity, exact integer amounts, atomic checkpoints, duplicate handling, writer leases, bounded caches and authenticated refresh routes.
 
 ## Project layout
 

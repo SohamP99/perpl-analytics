@@ -24,7 +24,7 @@ export async function runJob(store,{env=process.env,makeSources,snapshot=async()
   // Preserve provider cooldown across cold starts and deployments.
   if(retryAt>started)return {status:'cooldown',retryAt};
   if((await store.get('nextRun',0)||0)>started)return {status:'scheduled',nextRun:await store.get('nextRun')};
-  await store.set('lastAttempt',started);await store.set('nextRun',started+INTERVAL);
+  await store.set('lastAttempt',started);await store.set('nextRun',(Math.floor(started/INTERVAL)+1)*INTERVAL);
   const storageLimit=Number(env.PERPL_CLOUD_STORAGE_LIMIT_MB||400);
   if(!Number.isFinite(storageLimit)||storageLimit<1)throw Error('Invalid cloud storage limit');
   if(await store.maintenance()>storageLimit*1024*1024)throw Object.assign(Error('Cloud storage safety limit reached; checkpoint retained'),{safeMessage:true});

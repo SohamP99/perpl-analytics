@@ -26,7 +26,7 @@ The launcher prints and opens a verified localhost URL. Its process must stay op
 
 ## Hosting status
 
-The Vercel frontend, read-only proxy, PostgreSQL backend and bounded refresh job are implemented and locally tested. The cloud services are **not yet deployed and verified**. Use the cloud startup command in the deployment guide; do not deploy the local SQLite launcher on an ephemeral filesystem.
+The dashboard is deployed at https://perpl-pulse.vercel.app on Vercel Hobby. Supabase Free PostgreSQL retains the historical summaries and checkpoints. A protected refresh endpoint is called every five minutes by Supabase Cron, with credentials in Vault. Live protocol, market and wallet routes have been verified. See the deployment guide for operational checks and limits.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the deployment order and required configuration. Vercel builds intentionally refuse to publish without backend configuration.
 

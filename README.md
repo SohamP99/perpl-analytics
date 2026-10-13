@@ -102,3 +102,9 @@ Overview → Open interest by market → BTC detail → a linked liquidated wall
 
 Also run `node tests/analytics.mjs`, `node tests/cache-bounds.mjs` and `node tests/vercel-cloud.mjs`. Browser checks accept `PERPL_TEST_URL` for a configured deployment. Screenshots and the deployment QA matrix are linked in the release PR. Numeric history-preservation checks compare saved historical rows and seed hashes, not just totals.
 
+
+## Release screenshots
+
+![Overview](docs/qa/final-overview-1440-dark.png)
+
+[Before/after screenshots for all tabs and the verification report](docs/qa/README.md).

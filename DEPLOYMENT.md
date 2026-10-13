@@ -4,7 +4,7 @@ The prepared deployment uses Vercel Hobby for the frontend and Node functions, S
 
 ## Status
 
-Source is on the private GitHub repository `SohamP99/perpl-pulse`, branch `main`. The app is deployed at https://perpl-pulse.vercel.app on Vercel Hobby. Supabase Free PostgreSQL is connected with verified TLS, the historical seed is imported, and a five-minute Supabase Cron job is enabled. Public protocol, market, and wallet endpoints return HTTP 200. An authenticated refresh processed seven batches and advanced the checkpoint by 11,517 blocks. The automatic Supabase run at 16:35 IST on 13 October 2026 returned HTTP 200 and caught up through block 113024260. The next run is scheduled five minutes later; no local computer is needed.
+Source is on the private GitHub repository `SohamP99/perpl-analytics`, branch `main`. The app is deployed at https://perpl-analytics.vercel.app on Vercel Hobby. Supabase Free PostgreSQL is connected with verified TLS, the historical seed is imported, and a five-minute Supabase Cron job is enabled. Public protocol, market, and wallet endpoints return HTTP 200. An authenticated refresh processed seven batches and advanced the checkpoint by 11,517 blocks. The automatic Supabase run at 16:35 IST on 13 October 2026 returned HTTP 200 and caught up through block 113024260. The next run is scheduled five minutes later; no local computer is needed.
 
 Google AI Studio's initial Get started screen was not proof of Starter eligibility. The actual publish flow asked to confirm a billing account. No Continue, paid upgrade or deployment was performed. Leave the old AI Studio environment-variable prompt unfilled. Do not force-push AI Studio's generated rewrite over the tested GitHub code.
 
@@ -37,7 +37,7 @@ Do not set `PERPL_BACKEND_URL` for this all-Vercel deployment. `PERPL_DATA_DIR`,
 
 ## 3. Deploy on Vercel Hobby
 
-1. Import `SohamP99/perpl-pulse`, branch `main`, into your personal **Hobby** account.
+1. Import `SohamP99/perpl-analytics`, branch `main`, into your personal **Hobby** account.
 2. Framework preset: **Other**. Root directory: repository root. Node.js: **24**.
 3. The checked-in `vercel.json` sets install to `npm ci`, build to `node scripts/build-web.mjs`, and output to `web-dist`.
 4. Add the variables above to the **Production** environment. Preview deployments need their own database if enabled; do not casually point unreviewed branches at production.

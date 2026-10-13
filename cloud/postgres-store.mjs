@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {boundary,summarize} from '../indexer/summary-spec.mjs';
 import {summaryView} from '../indexer/summary-view.mjs';
+import {cacheKey,CACHE_BYTES,CACHE_ENTRIES,CACHE_ENTRY_BYTES,CACHE_RETENTION,storageLimit} from './cache-policy.mjs';
 const json=v=>JSON.stringify(v,(_,n)=>typeof n==='bigint'?n.toString():n);
 const clock="(extract(epoch from clock_timestamp())*1000)::bigint";
 export class PostgresStore {
@@ -11,8 +12,24 @@ export class PostgresStore {
  async transaction(fn,{readOnly=false}={}){const db=await this.pool.connect();try{await db.query(readOnly?'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY':'BEGIN');await db.query("SET LOCAL statement_timeout='4000ms'");const result=await fn(db);await db.query('COMMIT');return result;}catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}}
  async acquire(owner){const r=await this.pool.query(`INSERT INTO lease VALUES(1,$1,${clock}+60000) ON CONFLICT(id) DO UPDATE SET owner=excluded.owner,expires=excluded.expires WHERE lease.expires<${clock} OR lease.owner=$1 RETURNING owner`,[owner]);return r.rows.length===1;}
  async release(owner){await this.pool.query('DELETE FROM lease WHERE owner=$1',[owner]);}
- async cache(path){const r=(await this.pool.query('SELECT data,time FROM api_cache WHERE path=$1',[path])).rows[0];return r?{data:r.data,at:Number(r.time)}:null;}
- async saveCache(path,data){await this.pool.query('INSERT INTO api_cache VALUES($1,$2,$3) ON CONFLICT(path) DO UPDATE SET data=excluded.data,time=excluded.time',[path,json(data),Date.now()]);}
+ async cache(path){const r=(await this.pool.query('SELECT data,time FROM api_cache WHERE path=$1 AND COALESCE(request_path,path)=$2 AND time>=$3',[cacheKey(path),path,Date.now()-CACHE_RETENTION])).rows[0];return r?{data:r.data,at:Number(r.time)}:null;}
+ async storageBytes(db=this.pool){return Number((await db.query('SELECT pg_database_size(current_database())::text bytes')).rows[0].bytes);}
+ async storageRoom(db,reserve=0){return await this.storageBytes(db)+reserve<storageLimit();}
+ async trimCache(db,exclude='',reserve=0){
+  await db.query('DELETE FROM api_cache WHERE time<$1',[Date.now()-CACHE_RETENTION]);
+  await db.query(`DELETE FROM api_cache WHERE path IN (SELECT path FROM (SELECT path,row_number() OVER(ORDER BY time DESC,path) n,sum(cache_bytes) OVER(ORDER BY time DESC,path) bytes FROM api_cache WHERE path<>$1) ranked WHERE n>$2 OR bytes>$3)`,[exclude,CACHE_ENTRIES-(exclude?1:0),CACHE_BYTES-reserve]);
+ }
+ async saveCache(path,data){
+  const payload=json(data),bytes=Buffer.byteLength(payload);if(bytes>CACHE_ENTRY_BYTES)return false;
+  return this.transaction(async db=>{
+   // All bulk data writers share this transaction lock, including the indexer.
+   await db.query('SELECT pg_advisory_xact_lock(143,202603)');
+   await this.trimCache(db,cacheKey(path),bytes);
+   if(!await this.storageRoom(db,bytes*8+65536))return false;
+   await db.query('INSERT INTO api_cache(path,data,time,request_path,cache_bytes) VALUES($1,$2,$3,$4,$5) ON CONFLICT(path) DO UPDATE SET data=excluded.data,time=excluded.time,request_path=excluded.request_path,cache_bytes=excluded.cache_bytes',[cacheKey(path),payload,Date.now(),path,bytes]);
+   return true;
+  });
+ }
  async distinctLiquidationMarkets(){return (await this.pool.query('SELECT DISTINCT market FROM liquidation_details')).rows.map(r=>r.market);}
  async liquidations(){return (await this.pool.query('SELECT l.*,a.address FROM liquidation_details l LEFT JOIN account_addresses a ON a.account=l.account ORDER BY l.time DESC,l.id DESC')).rows.map(r=>({...r,time:Number(r.time),block:Number(r.block)}));}
  async commit(batch,owner){
@@ -21,6 +38,8 @@ export class PostgresStore {
   const ids=new Set();for(const r of rows){if(r.block<start||r.block>end||r.time<Date.parse(boundary.cutoff)||r.time>time||!r.id||ids.has(r.id))throw Error('Invalid or duplicate batch event');ids.add(r.id);}
   const sum=summarize(rows);
   await this.transaction(async db=>{
+   await db.query('SELECT pg_advisory_xact_lock(143,202603)');
+   if(!await this.storageRoom(db,Buffer.byteLength(json(rows))*8+65536))throw Object.assign(Error('Cloud storage safety limit reached; checkpoint retained'),{safeMessage:true});
    const lease=await db.query(`SELECT owner FROM lease WHERE id=1 AND owner=$1 AND expires>${clock} FOR UPDATE`,[owner]);if(!lease.rows.length)throw Error('Writer lease lost');
    await db.query("SELECT value FROM settings WHERE key='next' FOR UPDATE");
    if(start!==await this.get('next',null,db)||firstParentHash!==await this.get('hash',null,db))throw Error('Summary continuity mismatch; checkpoint retained');
@@ -36,12 +55,11 @@ export class PostgresStore {
    const addresses=rows.filter(r=>r.name==='AccountCreated'&&/^0x[a-f0-9]{40}$/i.test(r.args.account)).map(r=>({account:String(r.args.id),address:r.args.account.toLowerCase()}));
    await db.query(`INSERT INTO account_addresses SELECT account,address FROM jsonb_to_recordset($1::jsonb) AS r(account text,address text) ON CONFLICT DO NOTHING`,[json(addresses)]);
    if(await this.get('recentFrom',null,db)===null||await this.get('recentNext',null,db)!==start)await this.set('recentFrom',Math.ceil(previousTime/60000)*60000,db);
-   const flows=new Map(),active=new Map(),transactions=new Map();
-   for(const r of rows){const minute=Math.floor(r.time/60000)*60000;if(r.name.includes('OrderFilled')){active.set(minute+':'+r.account,{minute,account:r.account});transactions.set(r.tx,{tx:r.tx,time:r.time});}
+   const flows=new Map(),active=new Map();
+   for(const r of rows){const minute=Math.floor(r.time/60000)*60000;if(r.name.includes('OrderFilled')){active.set(minute+':'+r.account,{minute,account:r.account});}
     if(r.name==='CollateralDeposit'||r.name==='CollateralWithdrawal'){const f=flows.get(minute)||{minute,deposits:0n,withdrawals:0n};f[r.name==='CollateralDeposit'?'deposits':'withdrawals']+=BigInt(r.args.amountCNS||0);flows.set(minute,f);}}
    await db.query(`INSERT INTO recent_flows SELECT minute,deposits,withdrawals FROM jsonb_to_recordset($1::jsonb) AS r(minute bigint,deposits numeric,withdrawals numeric) ON CONFLICT(minute) DO UPDATE SET deposits=recent_flows.deposits+excluded.deposits,withdrawals=recent_flows.withdrawals+excluded.withdrawals`,[json([...flows.values()])]);
    await db.query(`INSERT INTO recent_accounts SELECT minute,account FROM jsonb_to_recordset($1::jsonb) AS r(minute bigint,account text) ON CONFLICT DO NOTHING`,[json([...active.values()])]);
-   await db.query(`INSERT INTO recent_trading_transactions SELECT tx,time FROM jsonb_to_recordset($1::jsonb) AS r(tx text,time bigint) ON CONFLICT DO NOTHING`,[json([...transactions.values()])]);
    const prune=time-2*86400000;await db.query('DELETE FROM recent_flows WHERE minute<$1',[prune]);await db.query('DELETE FROM recent_accounts WHERE minute<$1',[prune]);await db.query('DELETE FROM recent_trading_transactions WHERE time<$1',[prune]);
    for(const [k,v] of Object.entries({next:end+1,hash,throughTime:time,recentNext:end+1,error:''}))await this.set(k,v,db);
   });
@@ -64,6 +82,6 @@ export class PostgresStore {
   const result=summaryView(rows,get,typeof activity==='function'?activity:()=>activity,active);
   const lease=(await db.query(`SELECT 1 FROM lease WHERE expires>${clock}`)).rows.length>0;result.coverage.running=lease;return result;
  },{readOnly:true});}
- async maintenance(){await this.pool.query('DELETE FROM api_cache WHERE time<$1',[Date.now()-2*86400000]);const r=await this.pool.query('SELECT pg_database_size(current_database())::text bytes');return Number(r.rows[0].bytes);}
+ async maintenance(){return this.transaction(async db=>{await db.query('SELECT pg_advisory_xact_lock(143,202603)');await this.trimCache(db);const through=await this.get('throughTime',0,db);await db.query('DELETE FROM recent_trading_transactions WHERE time<$1',[through-2*86400000]);return this.storageBytes(db);});}
  async close(){await this.pool.end();}
 }

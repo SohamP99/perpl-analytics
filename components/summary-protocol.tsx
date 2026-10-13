@@ -6,7 +6,7 @@ import {localRead} from './local-data';
 import {Chart,Metric,Tag,stamp} from './pulse-ui';
 export function useProtocolSummary(){
  const [data,setData]=useState<Raw|null>(null),[error,setError]=useState('');
- useEffect(()=>{let stopped=false;async function load(){try{const r=await localRead('protocol');if(!stopped){setData(r);setError('')}}catch(e){if(!stopped)setError((e as Error).message)}}load();const t=setInterval(load,30000);return()=>{stopped=true;clearInterval(t)}},[]);
+ useEffect(()=>{let stopped=false,running=false;async function load(){if(document.hidden||running)return;running=true;try{const r=await localRead('protocol');if(!stopped){setData(r);setError('')}}catch(e){if(!stopped)setError((e as Error).message)}finally{running=false}}load();window.addEventListener('perpl-sync',load);return()=>{stopped=true;window.removeEventListener('perpl-sync',load)}},[]);
  return {data,error};
 }
 export function LocalProtocol({flows=false,data,error=''}:{flows?:boolean,data:Raw|null,error?:string}){

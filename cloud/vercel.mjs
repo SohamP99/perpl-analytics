@@ -1,5 +1,6 @@
 import {createService,authorized} from './server.mjs';
 import {targetFor} from './routes.mjs';
+import {publicCacheHeaders} from './cache-policy.mjs';
 let service;
 function getService(){return service??=(createService().catch(e=>{service=undefined;let message=String(e.message||'');for(const [key,value] of Object.entries(process.env)){if(/TOKEN|PASSWORD|SECRET|DATABASE_URL/i.test(key)&&value?.length>5){message=message.split(value).join('[redacted]');if(key==='DATABASE_URL'){try{message=message.split(decodeURIComponent(new URL(value).password)).join('[redacted]');}catch{}}}}console.error('Cloud initialization failed',JSON.stringify({code:e.code||e.name,message:message.slice(0,240),file:e.code==='ENOENT'?String(e.path||'').split(/[\\/]/).pop():undefined}));throw e;}));}
 export function createVercelHandler({get=getService,env=process.env}={}){
@@ -20,7 +21,9 @@ export function createVercelHandler({get=getService,env=process.env}={}){
    // Inject only the read credential, after strict route validation.
    // Scheduled writes must supply their own independent job credential.
    const forwarded={method:req.method,url:job?'/jobs/refresh':url.pathname+url.search,headers:{authorization:job?req.headers.authorization:'Bearer '+env.PERPL_BACKEND_TOKEN}};
-   await handler(forwarded,res);
+   const writeHead=res.writeHead;
+   res.writeHead=function(status,headers){return writeHead.call(this,status,{...headers,...(job?{'Cache-Control':'no-store'}:publicCacheHeaders(url,status))});};
+   try{await handler(forwarded,res);}finally{res.writeHead=writeHead;}
   }catch(e){console.error('Cloud request failed',JSON.stringify({code:e.code||e.name}));return send(502,'Cloud data service is temporarily unavailable');}
  };
 }

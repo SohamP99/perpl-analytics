@@ -1,4 +1,4 @@
-# Perpl Pulse
+# Perpl Analytics
 
 Protocol analytics and public wallet intelligence for Perpl on Monad. React and TypeScript frontend with a Node.js data service.
 
@@ -26,7 +26,7 @@ The launcher prints and opens a verified localhost URL. Its process must stay op
 
 ## Hosting status
 
-The dashboard is deployed at https://perpl-pulse.vercel.app on Vercel Hobby. Supabase Free PostgreSQL retains the historical summaries and checkpoints. A protected refresh endpoint is called every five minutes by Supabase Cron, with credentials in Vault. Live protocol, market and wallet routes have been verified. See the deployment guide for operational checks and limits.
+The dashboard is deployed at https://perpl-analytics.vercel.app on Vercel Hobby. Supabase Free PostgreSQL retains the historical summaries and checkpoints. A protected refresh endpoint is called every five minutes by Supabase Cron, with credentials in Vault. Live protocol, market and wallet routes have been verified. See the deployment guide for operational checks and limits.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the deployment order and required configuration. Vercel builds intentionally refuse to publish without backend configuration.
 
@@ -50,3 +50,9 @@ npx tsc --noEmit
 - `docs/local-development-history.md`: earlier implementation notes; some sections describe superseded functionality.
 
 No credentials or local database files are included. The compact cloud seed includes public blockchain aggregates and event details, without wallet-search caches. Wallet connections and user API keys are not required for public wallet reads. Monetary values assume AUSD equals one USD; liquidation prices are estimates.
+
+## Free-tier protections
+
+Public responses share Vercel CDN caching for up to five minutes. Visible dashboards fetch protocol summaries on the five-minute sync event; hidden dashboards stop polling. Disposable API caches have an 8 MiB serialized-data budget, a 512-entry limit and a 1 MiB per-entry limit. Candle windows replace older cached snapshots. PostgreSQL overhead is additional. Cache writes and indexing batches share a storage guard, capped at 400 MiB. At the guard, indexing pauses without advancing its checkpoint and public API reads can return fresh uncached data. Existing historical tables are never pruned by cache maintenance. Unused temporary trading-transaction hashes are no longer collected; old hashes expire under their existing two-day policy.
+
+These safeguards reduce usage; they do not guarantee unlimited traffic within provider quotas.

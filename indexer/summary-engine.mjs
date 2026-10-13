@@ -12,7 +12,7 @@ export class SummaryEngine {
  }
  async publicRead(path,force=false){
   const saved=await this.store.cache(path);if(!force&&saved&&Date.now()-saved.at<REFRESH_MS)return {...saved,stale:false};
-  if(!this.pending.has(path))this.pending.set(path,(async()=>{try{const r=await fetch('https://app.perpl.xyz/api'+path,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('Perpl API unavailable');const data=await r.json();await this.store.saveCache(path,data);return {...(await this.store.cache(path)),stale:false};}catch(e){if(saved)return {...saved,stale:true,error:e.message};throw e;}finally{this.pending.delete(path)}})());return this.pending.get(path);
+  if(!this.pending.has(path))this.pending.set(path,(async()=>{try{const r=await fetch('https://app.perpl.xyz/api'+path,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('Perpl API unavailable');const data=await r.json();const at=Date.now();await this.store.saveCache(path,data);return {data,at,stale:false};}catch(e){if(saved)return {...saved,stale:true,error:e.message};throw e;}finally{this.pending.delete(path)}})());return this.pending.get(path);
  }
  async leaderboard(address){return leaderboardWallet(await this.publicRead(LEADERBOARD_PATH),address);}
  async liquidationMarkets(){

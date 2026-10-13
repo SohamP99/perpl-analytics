@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {Rpc} from '../indexer/chain.mjs';
 import {HyperSync} from '../indexer/hypersync.mjs';
 import {SpectrumRpc,SpectrumBackfill} from '../indexer/spectrum.mjs';
+import {storageLimit} from './cache-policy.mjs';
 const INTERVAL=300000;
 export async function incrementalBatch(start,head,{rpc,hyper,reader}){
  if(!hyper)return reader.range({start,end:Math.min(head,start+99)});
@@ -25,9 +26,7 @@ export async function runJob(store,{env=process.env,makeSources,snapshot=async()
   if(retryAt>started)return {status:'cooldown',retryAt};
   if((await store.get('nextRun',0)||0)>started)return {status:'scheduled',nextRun:await store.get('nextRun')};
   await store.set('lastAttempt',started);await store.set('nextRun',(Math.floor(started/INTERVAL)+1)*INTERVAL);
-  const storageLimit=Number(env.PERPL_CLOUD_STORAGE_LIMIT_MB||400);
-  if(!Number.isFinite(storageLimit)||storageLimit<1)throw Error('Invalid cloud storage limit');
-  if(await store.maintenance()>storageLimit*1024*1024)throw Object.assign(Error('Cloud storage safety limit reached; checkpoint retained'),{safeMessage:true});
+  if(await store.maintenance()>storageLimit(env))throw Object.assign(Error('Cloud storage safety limit reached; checkpoint retained'),{safeMessage:true});
   const boundedFetch=(url,options={})=>fetch(url,{...options,signal:AbortSignal.any([signal,...(options.signal?[options.signal]:[])])});
   const rpc=new Rpc(env.PERPL_LIVE_RPC_URL||'https://rpc.monad.xyz',30,{attempts:1,timeoutMs:6000,signal});
   const hyper=env.ENVIO_API_TOKEN?new HyperSync(env.ENVIO_API_TOKEN,{fetcher:boundedFetch}):null;

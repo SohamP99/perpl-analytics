@@ -31,7 +31,7 @@ export function createHandler({store,publicData,wallet,readToken,jobToken,job=()
   const send=(status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
   try{
    const url=new URL(req.url,'http://localhost');
-   if(req.method==='GET'&&(url.pathname==='/healthz'||url.pathname==='/'))return send(200,{app:'perpl-pulse',status:'ok',service:'data-backend'});
+   if(req.method==='GET'&&(url.pathname==='/healthz'||url.pathname==='/'))return send(200,{app:'perpl-analytics',status:'ok',service:'data-backend'});
    if(url.pathname==='/jobs/refresh'){
     if(!authorized(req.headers.authorization,jobToken))return send(401,{error:'Unauthorized'});
     if(req.method!=='POST')return send(405,{error:'Use POST'});
@@ -75,7 +75,7 @@ export async function main(){
  const {store,handler}=await createService();
  const server=createServer(handler);server.requestTimeout=60000;
  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(Number(process.env.PORT||8080),'0.0.0.0',resolve);});
- console.log('Perpl Pulse cloud backend ready');
+ console.log('Perpl Analytics cloud backend ready');
  process.on('SIGTERM',()=>server.close(()=>store.close().finally(()=>process.exit(0))));
  return server;
 }

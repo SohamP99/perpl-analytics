@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Perpl Pulse · Protocol & Wallet Intelligence",
+  title: "Perpl Analytics · Protocol & Wallet Intelligence",
   description: "Live Perpl market analytics, risk monitoring and read-only wallet intelligence.",
   icons: {
     icon: "/favicon.svg",

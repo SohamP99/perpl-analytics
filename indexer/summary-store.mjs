@@ -1,3 +1,4 @@
+import {summaryView} from './summary-view.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {mkdirSync} from 'node:fs';
 import path from 'node:path';
@@ -58,6 +59,7 @@ export class SummaryStore {
   this.db.exec('BEGIN IMMEDIATE');try{this.saveDetails(rows);this.set('detailsImportedThrough',old.get('next'));this.db.exec('COMMIT');}catch(e){this.db.exec('ROLLBACK');throw e;}
  }
  liquidations(){return this.db.prepare('SELECT l.*,a.address FROM liquidation_details l LEFT JOIN account_addresses a ON a.account=l.account ORDER BY l.time DESC,l.id DESC').all().map(r=>({...r,args:JSON.parse(r.args)}));}
+ distinctLiquidationMarkets(){return this.db.prepare('SELECT DISTINCT market FROM liquidation_details').all().map(r=>r.market);}
  observations(){return this.db.prepare('SELECT * FROM market_observations ORDER BY time').all().map(r=>({t:r.time,...observation(JSON.parse(r.data))}));}
  saveRecent(rows,previousTime,time,start,end){
   // Track exact minute-aligned windows from a verified continuous checkpoint.
@@ -84,21 +86,7 @@ export class SummaryStore {
   const d=days.find(d=>d.t===from);if(!d)return null;
   return {mode:'utc-day',from,to,deposits:d.deposits,withdrawals:d.withdrawals,makerFills:d.makerFills,tps:null,activeUsers:this.get('activityImported')||from>=Date.parse(boundary.cutoff)?this.db.prepare('SELECT COUNT(DISTINCT account) n FROM accounts WHERE day=?').get(new Date(from).toISOString().slice(0,10)).n:null};
  }
- view(){
-  const rows=this.db.prepare('SELECT * FROM daily ORDER BY day').all(),days=new Map();let deposits=0n,withdrawals=0n,fees=0n,builder=0n,insurance=0n,protocol=0n,liquidations=0,newAccounts=0;
-  const empty=t=>({t,v:0,deposits:0,withdrawals:0,fees:0,builderFees:0,insuranceFees:0,protocolFees:0,liquidations:0,newUsers:0,makerFills:0,takerFills:0});
-  for(const r of rows){const a=JSON.parse(r.amounts).map(BigInt);fees+=a[1];builder+=a[2];insurance+=a[3];protocol+=a[4];const d=days.get(r.day)||empty(Date.parse(r.day+'T00:00:00Z'));
-   d.fees+=Number(a[1])/1e6;d.builderFees+=Number(a[2])/1e6;d.insuranceFees+=Number(a[3])/1e6;d.protocolFees+=Number(a[4])/1e6;
-   if(r.event==='CollateralDeposit'){deposits+=a[0];d.deposits+=Number(a[0])/1e6;d.v+=Number(a[0])/1e6;}if(r.event==='CollateralWithdrawal'){withdrawals+=a[0];d.withdrawals+=Number(a[0])/1e6;d.v-=Number(a[0])/1e6;}
-   if(r.event==='PositionLiquidated'){liquidations+=r.count;d.liquidations+=r.count;}if(r.event==='AccountCreated'){newAccounts+=r.count;d.newUsers+=r.count;}
-   if(r.event.startsWith('MakerOrderFilled'))d.makerFills+=r.count;if(r.event.startsWith('TakerOrderFilled'))d.takerFills+=r.count;days.set(r.day,d);
-  }
-  const imported=this.get('imported'),history=!!imported;
-  // Daily zeros are trustworthy only inside a completed Dune or RPC interval.
-  const addDays=(start,end)=>{for(let t=start;t<=end;t+=86400000){const day=new Date(t).toISOString().slice(0,10);if(!days.has(day))days.set(day,empty(t));}};
-  if(history)addDays(Date.parse('2026-02-01T00:00:00Z'),Date.parse(boundary.cutoff)-86400000);
-  if(this.get('throughTime'))addDays(Date.parse(boundary.cutoff),Math.floor(this.get('throughTime')/86400000)*86400000);
-  return {activity24h:this.activity24h([...days.values()]),deposits:Number(deposits)/1e6,withdrawals:Number(withdrawals)/1e6,fees:Number(fees)/1e6,builderFees:Number(builder)/1e6,insuranceFees:Number(insurance)/1e6,positionProtocolFees:Number(protocol)/1e6,liquidations,newAccounts,activeAccounts:history&&!this.get('activityImported')?null:this.db.prepare('SELECT COUNT(DISTINCT account) n FROM accounts').get().n,daily:[...days.values()].sort((a,b)=>a.t-b.t),coverage:{mode:'summaries',historicalImported:history,activityImported:!!this.get('activityImported'),cutoff:boundary.cutoff,fromBlock:boundary.fromBlock,newFromBlock:boundary.toBlockExclusive,nextBlock:this.get('next'),throughTime:this.get('throughTime'),lastRun:this.get('lastRun'),lastAttempt:this.get('lastAttempt'),retryAt:this.get('retryAt'),refreshIntervalMs:300000,nextRun:this.get('nextRun'),error:this.get('error',''),running:this.get('running',false),importedAt:imported?.at,source:'Dune CSV + periodic HyperSync/RPC'}};
- }
+ view(){return summaryView(this.db.prepare('SELECT * FROM daily ORDER BY day').all(),(k,f=null)=>this.get(k,f),days=>this.activity24h(days),this.db.prepare('SELECT COUNT(DISTINCT account) n FROM accounts').get().n);}
+
  close(){this.db.close();}
 }

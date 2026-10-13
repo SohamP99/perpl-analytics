@@ -1,0 +1,15 @@
+{
+  "sha256": "0dbd128008d8af6e3d3a1a1daab23411b652f110207f3b83d66fac80035c91ae",
+  "checkpoint": 113011440,
+  "throughTime": 1791885611000,
+  "bytes": 874574,
+  "rows": {
+    "daily": 2103,
+    "accounts": 76281,
+    "liquidation_details": 1218,
+    "account_addresses": 3526,
+    "recent_flows": 5,
+    "recent_accounts": 1973,
+    "recent_trading_transactions": 4064
+  }
+}

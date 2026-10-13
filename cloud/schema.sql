@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value JSONB NOT NULL);
+CREATE TABLE IF NOT EXISTS daily(source TEXT,day TEXT,event TEXT,count BIGINT,amounts JSONB,PRIMARY KEY(source,day,event));
+CREATE TABLE IF NOT EXISTS accounts(source TEXT,day TEXT,account TEXT,fills BIGINT,PRIMARY KEY(source,day,account));
+CREATE TABLE IF NOT EXISTS api_cache(path TEXT PRIMARY KEY,data JSONB,time BIGINT);
+CREATE TABLE IF NOT EXISTS liquidation_details(id TEXT PRIMARY KEY,block BIGINT,time BIGINT,tx TEXT,account TEXT,market TEXT,args JSONB);
+CREATE TABLE IF NOT EXISTS account_addresses(account TEXT PRIMARY KEY,address TEXT);
+CREATE TABLE IF NOT EXISTS recent_flows(minute BIGINT PRIMARY KEY,deposits NUMERIC NOT NULL,withdrawals NUMERIC NOT NULL);
+CREATE TABLE IF NOT EXISTS recent_accounts(minute BIGINT,account TEXT,PRIMARY KEY(minute,account));
+CREATE TABLE IF NOT EXISTS recent_trading_transactions(tx TEXT PRIMARY KEY,time BIGINT);
+CREATE INDEX IF NOT EXISTS recent_transaction_time ON recent_trading_transactions(time);
+CREATE INDEX IF NOT EXISTS accounts_by_account ON accounts(account);
+CREATE TABLE IF NOT EXISTS lease(id INTEGER PRIMARY KEY,owner TEXT,expires BIGINT);

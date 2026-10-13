@@ -11,30 +11,30 @@ export class SummaryEngine {
  this.reader=this.hyper?new ParallelBackfill(this.hyper,process.env.PERPL_LIVE_RPC_URL||'https://rpc.monad.xyz',1):new SpectrumBackfill(process.env.SPECTRUM_ENDPOINT?spectrumClient():rpc,{workers:1,window:100});
  }
  async publicRead(path,force=false){
-  const saved=this.store.cache(path);if(!force&&saved&&Date.now()-saved.at<REFRESH_MS)return {...saved,stale:false};
-  if(!this.pending.has(path))this.pending.set(path,(async()=>{try{const r=await fetch('https://app.perpl.xyz/api'+path,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('Perpl API unavailable');const data=await r.json();this.store.saveCache(path,data);return {...this.store.cache(path),stale:false};}catch(e){if(saved)return {...saved,stale:true,error:e.message};throw e;}finally{this.pending.delete(path)}})());return this.pending.get(path);
+  const saved=await this.store.cache(path);if(!force&&saved&&Date.now()-saved.at<REFRESH_MS)return {...saved,stale:false};
+  if(!this.pending.has(path))this.pending.set(path,(async()=>{try{const r=await fetch('https://app.perpl.xyz/api'+path,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('Perpl API unavailable');const data=await r.json();await this.store.saveCache(path,data);return {...(await this.store.cache(path)),stale:false};}catch(e){if(saved)return {...saved,stale:true,error:e.message};throw e;}finally{this.pending.delete(path)}})());return this.pending.get(path);
  }
  async leaderboard(address){return leaderboardWallet(await this.publicRead(LEADERBOARD_PATH),address);}
  async liquidationMarkets(){
-  const ids=this.store.db.prepare('SELECT DISTINCT market FROM liquidation_details').all().map(r=>r.market),context=(await this.publicRead('/v1/pub/context')).data;
+  const ids=await this.store.distinctLiquidationMarkets(),context=(await this.publicRead('/v1/pub/context')).data;
   const current=new Set(context.markets.map(m=>String(m.id))),resolved=[];
   for(const id of ids.filter(id=>!current.has(id))){
-   const key='market-metadata:'+id;let meta=this.store.get(key);
+   const key='market-metadata:'+id;let meta=await this.store.get(key);
    if(!meta){try{const [p]=await this.rpc.read('getPerpetualInfo',[Number(id)]);const priceDecimals=Number(p.priceDecimals),sizeDecimals=Number(p.lotDecimals);
     if(!p.symbol||![priceDecimals,sizeDecimals].every(n=>Number.isInteger(n)&&n>=0&&n<=18))continue;
-    meta={id:Number(id),symbol:p.symbol+' (retired)',priceScale:10**priceDecimals,sizeScale:10**sizeDecimals};this.store.set(key,meta);
+    meta={id:Number(id),symbol:p.symbol+' (retired)',priceScale:10**priceDecimals,sizeScale:10**sizeDecimals};await this.store.set(key,meta);
    }catch{continue;}}
    resolved.push(meta);
   }return resolved;
  }
  async fundingHistory(id){
   const ctx=(await this.publicRead('/v1/pub/context')).data;if(!ctx.markets.some(m=>String(m.id)===id))throw Error('Unknown market');
-  const to=Math.floor(Date.now()/REFRESH_MS)*REFRESH_MS,from=to-30*86400000,key='funding-history:'+id,cached=this.store.cache(key);
+  const to=Math.floor(Date.now()/REFRESH_MS)*REFRESH_MS,from=to-30*86400000,key='funding-history:'+id,cached=await this.store.cache(key);
   if(cached&&Date.now()-cached.at<REFRESH_MS)return {...cached.data,stale:false};
   if(!this.pending.has(key))this.pending.set(key,(async()=>{try{
    const market=ctx.markets.find(m=>String(m.id)===id),step=Math.max(60000,Math.floor(1000*Number(market.config?.funding_interval_sec||market.funding_interval_sec||2580)*1000));
    const rows=new Map();for(let start=from;start<to;start+=step){const end=Math.min(to,start+step);const r=await fetch('https://app.perpl.xyz/api/v1/market-data/'+id+'/funding/'+start+'-'+end,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('Funding history unavailable');const d=await r.json();if(!Array.isArray(d.d))throw Error('Invalid funding history');for(const e of d.d)if(e.at?.t>=from&&e.at.t<=to&&Number.isFinite(e.rate))rows.set(e.at.t,{t:e.at.t,rate:e.rate/10000});}
-   const result={from,to,rows:[...rows.values()].sort((a,b)=>a.t-b.t)};this.store.saveCache(key,result);return {...result,stale:false};
+   const result={from,to,rows:[...rows.values()].sort((a,b)=>a.t-b.t)};await this.store.saveCache(key,result);return {...result,stale:false};
   }catch(e){if(cached)return {...cached.data,stale:true};throw e;}finally{this.pending.delete(key)}})());return this.pending.get(key);
  }
  start(){

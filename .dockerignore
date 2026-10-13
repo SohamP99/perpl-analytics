@@ -1,0 +1,12 @@
+**/node_modules
+**/.env*
+**/.git
+**/.perpl-data
+**/.sites-runtime
+**/.openai
+**/*.sqlite*
+**/*.db
+web-dist
+dist
+outputs
+work

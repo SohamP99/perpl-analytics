@@ -14,13 +14,15 @@ export const stringify = v => JSON.stringify(v, (_, x) => typeof x === 'bigint' 
 export function positionIds(banks){const offsets=[0,253,509,765],ids=[];for(let bank=0;bank<4;bank++)for(let bit=0;bit<(bank===0?253:256);bit++)if((banks[bank]>>BigInt(bit))&1n)ids.push(offsets[bank]+bit);return ids;}
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 export class Rpc {
-  constructor(url = process.env.PERPL_RPC_URL || 'https://rpc2.monad.xyz', interval = 400, {timeoutMs=25000,attempts=4}={}) {this.timeoutMs=timeoutMs;this.attempts=attempts;this.url=url;this.interval=interval;this.queue=Promise.resolve();this.calls=0;}
+  constructor(url = process.env.PERPL_RPC_URL || 'https://rpc2.monad.xyz', interval = 400, {timeoutMs=25000,attempts=4,signal}={}) {this.signal=signal;this.timeoutMs=timeoutMs;this.attempts=attempts;this.url=url;this.interval=interval;this.queue=Promise.resolve();this.calls=0;}
   async call(method, params) {
     const result=this.queue.then(async()=>{
       for(let attempt=0;attempt<this.attempts;attempt++) {
+        this.signal?.throwIfAborted();
         this.calls++;
         try {
-          const r=await fetch(this.url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:this.calls,method,params}),signal:AbortSignal.timeout(this.timeoutMs)});
+          const timeout=AbortSignal.timeout(this.timeoutMs);
+          const r=await fetch(this.url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:this.calls,method,params}),signal:this.signal?AbortSignal.any([timeout,this.signal]):timeout});
           if(r.status===429||r.status>=500)throw Error('RPC busy (HTTP '+r.status+')');
           if(!r.ok)throw Error('RPC HTTP '+r.status);
           const j=await r.json();if(j.error){let name='';try{name=errors.parseError(j.error.data)?.name||'';}catch{}const e=Error(name||j.error.message||'RPC error');e.contractError=name;throw e;}

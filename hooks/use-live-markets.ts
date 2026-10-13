@@ -7,6 +7,7 @@ export function useLiveMarkets(ctx: Raw | null) {
   useEffect(() => {
     let socket: WebSocket | null = null,
       stopped = false,
+      attempts = 0,
       retry = 1000,
       timer: ReturnType<typeof setTimeout>,
       flush: ReturnType<typeof setTimeout>,
@@ -14,10 +15,12 @@ export function useLiveMarkets(ctx: Raw | null) {
     let pending: Record<string, Raw> = {},
       rates: Record<string, Raw> = {};
     const connect = () => {
-      if (stopped || document.hidden) return;
+      if (stopped || document.hidden || attempts >= 3) return;
+      attempts++;
       socket = new WebSocket("wss://app.perpl.xyz/ws/v1/market-data");
       socket.onopen = () => {
         retry = 1000;
+        last = Date.now();
         socket?.send(
           JSON.stringify({
             mt: 5,
@@ -43,6 +46,7 @@ export function useLiveMarkets(ctx: Raw | null) {
             );
           }
           if (m.mt === 9 && m.d) {
+            attempts = 0;
             pending = { ...pending, ...m.d };
             setConnected(true);
           }
@@ -66,7 +70,7 @@ export function useLiveMarkets(ctx: Raw | null) {
       };
       socket.onclose = () => {
         setConnected(false);
-        if (!stopped && !document.hidden) {
+        if (!stopped && !document.hidden && attempts < 3) {
           timer = setTimeout(connect, retry);
           retry = Math.min(30000, retry * 2);
         }
@@ -83,6 +87,14 @@ export function useLiveMarkets(ctx: Raw | null) {
     document.addEventListener("visibilitychange", visibility);
     connect();
     const health = setInterval(() => {
+      if (
+        !document.hidden &&
+        attempts < 3 &&
+        (!socket || socket.readyState === WebSocket.CLOSED)
+      ) {
+        clearTimeout(timer);
+        connect();
+      }
       if (last && Date.now() - last > 45000) {
         setConnected(false);
         socket?.close();

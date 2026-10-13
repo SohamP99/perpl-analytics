@@ -2658,6 +2658,11 @@ footer button {
   filter: none;
 }
 /* Unified dashboard system */
+.app-shell .sub-nav {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
 :root {
   --cat-1: #b993ff;
   --cat-2: #54cbb4;

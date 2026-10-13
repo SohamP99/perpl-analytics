@@ -133,7 +133,10 @@ export function Modal({
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
-    ref.current?.querySelector<HTMLElement>("button,input")?.focus();
+    (
+      ref.current?.querySelector<HTMLElement>("input") ||
+      ref.current?.querySelector<HTMLElement>("button")
+    )?.focus();
     const handle = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
       if (e.key === "Tab") {

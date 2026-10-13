@@ -205,7 +205,7 @@ export default function WalletProfile({
               title="Estimated equity"
               value={money(v!.equity)}
               definition="Balance plus position collateral and mark-adjusted unrealized PnL. Based on the last contract snapshot."
-              note="Live-mark estimate · positions every 5 min"
+              note="Mark-adjusted estimate · positions every 5 min"
             />
             <Metric
               title="Available balance"

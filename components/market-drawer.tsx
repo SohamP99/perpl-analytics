@@ -90,7 +90,10 @@ export default function MarketDrawer({
           OI trend becomes available after 24 hours of recorded snapshots.
         </p>
       )}
-      <h3>Recent detailed liquidations</h3>
+      <h3>Latest available detailed liquidations</h3>
+      <p className="chart-note">
+        Partial historical coverage · dates shown per record.
+      </p>
       <div className="table-wrap">
         <table>
           <thead>

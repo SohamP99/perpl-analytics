@@ -38,6 +38,7 @@ export function ChartTooltip({
   series,
   period,
   partial,
+  stacked = false,
 }: any) {
   if (!active || !payload?.length) return null;
   const items = payload.filter((p: any) => p.value != null),
@@ -66,7 +67,8 @@ export function ChartTooltip({
           </span>
           <strong>
             {format(p.value)}
-            {series.length > 1 &&
+            {stacked &&
+            series.length > 1 &&
             sum > 0 &&
             p.dataKey !== "__cumulative" &&
             p.value >= 0
@@ -75,7 +77,7 @@ export function ChartTooltip({
           </strong>
         </div>
       ))}
-      {series.length > 1 && (
+      {stacked && series.length > 1 && (
         <div>
           <span>Total</span>
           <strong>{format(sum)}</strong>
@@ -502,6 +504,7 @@ export function ChartCard({
                     series={visible}
                     period={period}
                     partial={end}
+                    stacked={stack}
                   />
                 }
               />

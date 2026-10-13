@@ -48,9 +48,7 @@ try {
     page.getByRole("heading", { name: "Wallet explorer", exact: true }),
   ).toBeVisible();
   await expect(
-    page
-      .getByRole("button", { name: /Watch wallet|Watching/, exact: false })
-      .first(),
+    page.getByRole("button", { name: /Watch|Watching/, exact: false }).first(),
   ).toBeVisible({ timeout: 90000 });
   await page.goto(origin + "/methodology");
   await expect(

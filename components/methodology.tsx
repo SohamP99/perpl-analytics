@@ -102,8 +102,11 @@ export default function Methodology({ protocol }: { protocol: Raw | null }) {
           calls.
         </p>
         <p>
-          Aggregates refresh every five minutes. Live marks do not imply live
-          wallet positions. Indexed through{" "}
+          Aggregates refresh every five minutes. Perpl currently rejects this
+          website's WebSocket origin; market prices fall back to those
+          snapshots. The streaming client activates only when the provider
+          permits the connection. Live marks do not imply live wallet positions.
+          Indexed through{" "}
           {protocol?.coverage?.throughTime
             ? new Date(protocol.coverage.throughTime).toISOString()
             : "unavailable"}

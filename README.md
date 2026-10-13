@@ -60,7 +60,7 @@ These safeguards reduce usage; they do not guarantee unlimited traffic within pr
 
 ## Analytics release
 
-Perpl Analytics brings public protocol totals, market risk and wallet positions into one shareable view. Charts use one consistent set of range, bucket, legend and export controls. Market prices stream directly from Perpl; account state and indexed summaries retain the five-minute refresh. Metrics distinguish recorded facts, live mark estimates and incomplete history.
+Perpl Analytics brings public protocol totals, market risk and wallet positions into one shareable view. Charts use one consistent set of range, bucket, legend and export controls. The public WebSocket client is included, but Perpl currently rejects our website Origin with HTTP 403. Until the provider allows this domain or a relay is provisioned, prices safely use the five-minute snapshots. Account state and indexed summaries retain the five-minute refresh. Metrics distinguish recorded facts, live mark estimates and incomplete history.
 
 ```mermaid
 flowchart LR
@@ -101,3 +101,4 @@ Overview → Open interest by market → BTC detail → a linked liquidated wall
 ### Verification
 
 Also run `node tests/analytics.mjs`, `node tests/cache-bounds.mjs` and `node tests/vercel-cloud.mjs`. Browser checks accept `PERPL_TEST_URL` for a configured deployment. Screenshots and the deployment QA matrix are linked in the release PR. Numeric history-preservation checks compare saved historical rows and seed hashes, not just totals.
+

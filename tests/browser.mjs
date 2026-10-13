@@ -27,9 +27,9 @@ try {
   const cumulative = card.getByRole("switch", {
     name: "Total volume cumulative",
   });
-  await expect(cumulative).toHaveAttribute("aria-checked", "true");
-  await cumulative.click();
   await expect(cumulative).toHaveAttribute("aria-checked", "false");
+  await cumulative.click();
+  await expect(cumulative).toHaveAttribute("aria-checked", "true");
   await card
     .getByRole("button", { name: "Total volume: W", exact: true })
     .click();

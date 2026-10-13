@@ -9,7 +9,7 @@ const metrics = [
     "Outstanding size multiplied by current mark, with the market size and price scales.",
   ],
   [
-    "Net deposits (TVL proxy)",
+    "Total value locked",
     "Cumulative collateral deposits less withdrawals. Excludes trader PnL; not equivalent to market collateral.",
   ],
   [
@@ -114,8 +114,10 @@ export default function Methodology({ protocol }: { protocol: Raw | null }) {
         </p>
         <p>
           Unavailable values appear as —. Historical detail cannot be
-          reconstructed from daily totals. The global market filter only applies
-          to data with a market dimension. Historical wallet trades, exact
+          reconstructed from daily totals. Counters use fixed current, daily or
+          all-time windows. Each tab's timeframe changes only its time-series
+          charts. Market selectors are local to charts with market-level data;
+          fees and registrations are protocol-wide. Historical wallet trades, exact
           directional OI, insurance balances, builder attribution and conversion
           rates are deferred until complete supporting data exists.
         </p>

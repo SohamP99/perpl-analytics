@@ -51,7 +51,7 @@ export default function MarketShare({
               background: marketColor(t.id),
             }}
           >
-            {t.width > 95 && t.height > 72 && (
+            {t.value / total >= 0.05 && t.width > 150 && t.height > 135 && (
               <>
                 <b>{m.symbol}</b>
                 <strong>{((t.value / total) * 100).toFixed(1)}%</strong>

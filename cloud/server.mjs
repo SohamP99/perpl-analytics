@@ -8,7 +8,7 @@ import {decodeSeed,importSeed} from './seed.mjs';
 import {runJob} from './job.mjs';
 import {CloudWallet} from './wallet.mjs';
 import {SummaryEngine} from '../indexer/summary-engine.mjs';
-import {targetFor} from '../api/proxy.mjs';
+import {targetFor} from './routes.mjs';
 export function authorized(header,secret){if(typeof secret!=='string'||secret.length<32||typeof header!=='string')return false;const a=Buffer.from(header),b=Buffer.from('Bearer '+secret);return a.length===b.length&&timingSafeEqual(a,b);}
 export function createHandler({store,publicData,wallet,readToken,jobToken,job=()=>runJob(store,{snapshot:()=>publicData.publicRead('/v1/pub/context')})}){
  let busy=false;
@@ -16,7 +16,7 @@ export function createHandler({store,publicData,wallet,readToken,jobToken,job=()
   const send=(status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
   try{
    const url=new URL(req.url,'http://localhost');
-   if(req.method==='GET'&&url.pathname==='/healthz')return send(200,{app:'perpl-pulse',status:'ok'});
+   if(req.method==='GET'&&(url.pathname==='/healthz'||url.pathname==='/'))return send(200,{app:'perpl-pulse',status:'ok',service:'data-backend'});
    if(url.pathname==='/jobs/refresh'){
     if(!authorized(req.headers.authorization,jobToken))return send(401,{error:'Unauthorized'});
     if(req.method!=='POST')return send(405,{error:'Use POST'});
@@ -48,7 +48,7 @@ export async function main(){
  if(!process.env.DATABASE_URL&&!process.env.PGHOST)throw Error('Configure the Starter Tier PostgreSQL connection');
  const pool=new pg.Pool({...(process.env.DATABASE_URL?{connectionString:process.env.DATABASE_URL}:{}),max:4,idleTimeoutMillis:10000,connectionTimeoutMillis:8000,statement_timeout:4000});
  const store=new PostgresStore(pool);await store.init();
- if(!await store.get('cloudSeed')){const manifest=JSON.parse(readFileSync(new URL('./seed-manifest.json',import.meta.url),'utf8')),bytes=readFileSync(new URL('./seed.json.gz',import.meta.url));await importSeed(store,decodeSeed(bytes,manifest.sha256),manifest.sha256);}
+ if(!await store.get('cloudSeed')){const manifest=JSON.parse(readFileSync(new URL('./seed-manifest.json',import.meta.url),'utf8'));let bytes;try{bytes=readFileSync(new URL('./seed.json.gz',import.meta.url));}catch(e){if(e.code!=='ENOENT')throw e;bytes=Buffer.from(JSON.parse(readFileSync(new URL('./seed-data.json',import.meta.url),'utf8')).base64,'base64');}await importSeed(store,decodeSeed(bytes,manifest.sha256),manifest.sha256);}
  const publicData=new SummaryEngine(store),wallet=new CloudWallet(store,publicData);
  const server=createServer(createHandler({store,publicData,wallet,readToken,jobToken}));server.requestTimeout=60000;
  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(Number(process.env.PORT||8080),'0.0.0.0',resolve);});

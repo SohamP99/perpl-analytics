@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import handler,{targetFor} from '../api/proxy.mjs';
+assert.equal(targetFor('/api/local/protocol','https://backend.example').href,'https://backend.example/api/local/protocol');
+assert.equal(targetFor('/api/proxy?path=local%2Ffunding-history&market=1','https://backend.example').href,'https://backend.example/api/local/funding-history?market=1');
+for(const path of ['/api/local/indexer','/api/proxy?path=https://evil.example','/api/proxy?path=../secret','/api/local/protocol?token=secret'])assert.throws(()=>targetFor(path,'https://backend.example'));
+for(const origin of ['http://backend.example','https://user:secret@backend.example','https://backend.example/path'])assert.throws(()=>targetFor('/api/local/protocol',origin));
+const res={code:0,body:null,setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};
+await handler({method:'POST'},res);assert.equal(res.code,405);
+delete process.env.PERPL_BACKEND_URL;delete process.env.PERPL_BACKEND_TOKEN;await handler({method:'GET'},res);assert.equal(res.code,503);
+console.log('PASS: read-only proxy, strict route/origin validation, credential-safe errors, missing backend fails closed.');

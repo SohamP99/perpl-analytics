@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/PerplFoundation/dex-sdk",
+  "revision": "78ce8a06e39e2f9288792eba41aca5f3c08c1195",
+  "file": "crates/sdk/abi/dex/Exchange.json",
+  "deploymentBlock": 54773010,
+  "deploymentDate": "2026-02-11T23:02:27.000Z",
+  "chainId": 143,
+  "exchange": "0x34b6552d57a35a1d042ccae1951bd1c370112a6f"
+}

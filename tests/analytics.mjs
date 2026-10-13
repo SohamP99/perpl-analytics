@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {normalize,analyzeEvents,drawdown,importReadKey,signedApi} from '../lib/perpl.ts';
+const ctx={tokens:[{id:1,decimals:6}],instances:[{id:1,collateral_token_id:1}]};
+const m=normalize({id:1,name:'BTC',symbol:'',instance_id:1,config:{price_decimals:1,size_decimals:5},state:{mrk:800000,lst:810000,prv:800000,dva:'123456789',oi:100000,tvl:'50000000',bid:799990,ask:800010,mid:800000,orl:800000},funding:{rate:-20}},ctx);
+assert.equal(m.symbol,'BTC');assert.equal(m.price,80000);assert.equal(m.volume,123.456789);assert.equal(m.oi,80000);assert.equal(m.tvl,50);assert.equal(m.rate,-0.002);assert.equal(m.spread,0.25);assert.equal(normalize({...m,state:{}},ctx).volume,null);
+const a={acc:1,mkt:1,pid:1,sr:13,dpnl:'100000000',fnd:'5000000',fee:'10000000',at:{b:10,t:7200000,l:1},ots:{t:3600000}};
+const b={...a,pid:2,dpnl:'-40000000',fnd:'0',at:{b:11,t:10800000,l:1}};
+const stats=analyzeEvents([a,b,a],1e6);assert.equal(stats.events.length,2);assert.equal(stats.net(a),95);assert.equal(stats.net(b),-50);assert.equal(stats.winRate,50);assert.equal(stats.profitFactor,1.9);assert.equal(stats.bestStreak,1);assert.equal(stats.worstStreak,1);assert.equal(drawdown([{v:'100000000'},{v:'80000000'},{v:'120000000'},{v:'60000000'}],1e6),50);assert.equal(drawdown([],1e6),null);
+await assert.rejects(importReadKey('bad'));
+const pair=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);const privateDer=new Uint8Array(await crypto.subtle.exportKey('pkcs8',pair.privateKey));const seed=Buffer.from(privateDer.slice(-32)).toString('hex');const key=await importReadKey(seed);assert.equal(key.extractable,false);
+let captured;globalThis.fetch=async(url,options)=>{captured={url,options};return Response.json({ok:true})};await signedApi('/v1/trading/fills?count=100','test-token',key);const h=captured.options.headers;assert.equal(captured.url,'/api/perpl/v1/trading/fills?count=100');const emptyHash=Buffer.from(await crypto.subtle.digest('SHA-256',new Uint8Array())).toString('hex');const canonical=['143','GET','/v1/trading/fills?count=100',h['X-API-Timestamp'],h['X-API-Nonce'],emptyHash].join('\n');assert.equal(await crypto.subtle.verify('Ed25519',pair.publicKey,Buffer.from(h['X-API-Signature'],'base64url'),new TextEncoder().encode(canonical)),true);assert.equal(JSON.stringify(captured).includes(seed),false);
+console.log('PASS: decimal scaling, missing values, signed funding, OI, event deduplication, net PnL, performance, drawdown and Ed25519 signing.');

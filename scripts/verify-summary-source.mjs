@@ -1,0 +1,11 @@
+import {Rpc} from '../indexer/chain.mjs';
+import {HyperSync} from '../indexer/hypersync.mjs';
+import {ParallelBackfill} from '../indexer/parallel.mjs';
+import {boundary,summarize} from '../indexer/summary-spec.mjs';
+process.loadEnvFile();
+const rpc=new Rpc('https://rpc.monad.xyz',150),hyper=new HyperSync(process.env.ENVIO_API_TOKEN);
+const reader=new ParallelBackfill(hyper,'https://rpc.monad.xyz',1);
+const start=boundary.toBlockExclusive,end=start+49,batch=await reader.range({start,end,source:'HyperSync'});
+if(batch.firstParentHash!==boundary.parentHash)throw Error('Cutoff hash mismatch');
+const summary=summarize(batch.rows);
+console.log(JSON.stringify({start,end,decodedEvents:batch.rows.length,dailySummaryRows:summary.daily.length,accountDayRows:summary.accounts.length,hashVerified:true,databaseModified:false}));

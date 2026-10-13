@@ -1,0 +1,10 @@
+import {readFileSync} from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {readNetworkSnapshot,applyNetworkCsv,saveNetworkSnapshot} from '../indexer/network-snapshot.mjs';
+const files=process.argv.slice(2);if(!files.length)throw Error('Usage: node scripts/import-network-summaries.mjs TPS.csv HOURLY.csv EMISSIONS.csv (any subset)');
+const directory=process.env.PERPL_DATA_DIR||fileURLToPath(new URL('../.perpl-data',import.meta.url));
+let snapshot=readNetworkSnapshot(directory);
+for(const file of files)snapshot=applyNetworkCsv(snapshot,readFileSync(path.resolve(file),'utf8'));
+saveNetworkSnapshot(directory,snapshot);
+console.log(JSON.stringify({saved:true,tps:snapshot.tps?.value,hours:snapshot.hourly?.data.length,emissionDays:snapshot.emissions?.data.length}));

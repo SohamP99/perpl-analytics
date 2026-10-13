@@ -1,0 +1,9 @@
+{
+  "cutoff": "2026-10-13T00:00:00Z",
+  "fromBlock": 54773010,
+  "toBlockExclusive": 112892174,
+  "parentHash": "0xff6c37a158d77d8578e5038b7e7dee6067f821f6f3596fac3c7c3b16c015920d",
+  "firstHash": "0x5c6cf21b7f65baad05f2da3e980275bb38b4ae798b401cbe900c4759ea58ab07",
+  "previousTime": 1791849599000,
+  "firstTime": 1791849600000
+}

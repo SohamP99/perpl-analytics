@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { GET } from '../app/api/perpl/[...path]/route.ts';
+let called=false;globalThis.fetch=async()=>{called=true;return Response.json({mt:9,d:{}})};
+assert.equal((await GET(new Request('https://pulse.test/api/perpl/v1/trading/orders'))).status,400);assert.equal(called,false);
+assert.equal((await GET(new Request('https://pulse.test/api/perpl/v1/trading/wallet'))).status,401);assert.equal(called,false);
+assert.equal((await GET(new Request('https://pulse.test/api/perpl/v1/market-data/ticker'))).status,200);assert.equal(called,true);
+let upstream;globalThis.fetch=async(url,opts)=>{upstream={url,opts};return Response.json({addr:'0x0000000000000000000000000000000000000000'})};
+const headers={'X-API-Key':'token','X-API-Timestamp':'1','X-API-Nonce':'nonce','X-API-Signature':'signature'};const r=await GET(new Request('https://pulse.test/api/perpl/v1/trading/wallet',{headers}));assert.equal(r.headers.get('Cache-Control'),'no-store');assert.equal(upstream.url,'https://app.perpl.xyz/api/v1/trading/wallet');assert.equal(upstream.opts.headers['X-API-Key'],'token');
+globalThis.fetch=async()=>{throw new Error('private diagnostic')};const failure=await GET(new Request('https://pulse.test/api/perpl/v1/market-data/ticker'));assert.equal(failure.status,502);assert.equal((await failure.text()).includes('private diagnostic'),false);
+console.log('PASS: endpoint allowlist, missing-auth rejection, fixed-origin relay, private no-store and safe upstream failure.');

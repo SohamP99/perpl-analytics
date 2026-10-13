@@ -1,7 +1,7 @@
 import {createService,authorized} from './server.mjs';
 import {targetFor} from './routes.mjs';
 let service;
-function getService(){return service??=(createService().catch(e=>{service=undefined;throw e;}));}
+function getService(){return service??=(createService().catch(e=>{service=undefined;console.error('Cloud initialization failed',JSON.stringify({code:e.code||e.name,file:e.code==='ENOENT'?String(e.path||'').split(/[\\/]/).pop():undefined}));throw e;}));}
 export function createVercelHandler({get=getService,env=process.env}={}){
  return async function(req,res){
   const send=(code,error)=>{res.writeHead(code,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error}));};
@@ -27,3 +27,4 @@ export function createVercelHandler({get=getService,env=process.env}={}){
  };
 }
 export default createVercelHandler();
+

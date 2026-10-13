@@ -51,7 +51,7 @@ export function createHandler({store,publicData,wallet,readToken,jobToken,job=()
     const result=await publicData.publicRead(valid.pathname.replace('/api/perpl',''));return send(200,{...result.data,_snapshotAt:result.at,_stale:result.stale});
    }
    return send(404,{error:'Not found'});
-  }catch{return send(502,{error:'Cloud data service is temporarily unavailable'});}
+  }catch(e){console.error('Cloud read failed',JSON.stringify({code:e.code||e.name}));return send(502,{error:'Cloud data service is temporarily unavailable'});}
  };
 }
 export async function createService(){

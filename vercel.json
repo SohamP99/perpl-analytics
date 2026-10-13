@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
+  "regions": ["sin1"],
   "installCommand": "npm ci",
   "buildCommand": "node scripts/build-web.mjs",
   "outputDirectory": "web-dist",
@@ -8,3 +9,4 @@
   "rewrites": [{"source": "/api/refresh", "destination": "/api/refresh"}, {"source": "/api/:path*", "destination": "/api/proxy?path=:path*"}],
   "headers": [{"source": "/(.*)", "headers": [{"key": "X-Content-Type-Options", "value": "nosniff"}, {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"}]}]
 }
+

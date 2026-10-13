@@ -14,3 +14,8 @@ CREATE TABLE IF NOT EXISTS recent_trading_transactions(tx TEXT PRIMARY KEY,time 
 CREATE INDEX IF NOT EXISTS recent_transaction_time ON recent_trading_transactions(time);
 CREATE INDEX IF NOT EXISTS accounts_by_account ON accounts(account);
 CREATE TABLE IF NOT EXISTS lease(id INTEGER PRIMARY KEY,owner TEXT,expires BIGINT);
+
+CREATE TABLE IF NOT EXISTS market_history(bucket BIGINT,market TEXT,data JSONB NOT NULL,PRIMARY KEY(bucket,market));
+CREATE TABLE IF NOT EXISTS recent_flow_details(id TEXT PRIMARY KEY,time BIGINT,account TEXT,kind TEXT,amount TEXT,tx TEXT);
+CREATE INDEX IF NOT EXISTS recent_flows_time ON recent_flow_details(time);
+CREATE INDEX IF NOT EXISTS accounts_day ON accounts(day);

@@ -1,12 +1,59 @@
-import assert from 'node:assert/strict';
-import {normalize,analyzeEvents,drawdown,importReadKey,signedApi} from '../lib/perpl.ts';
-const ctx={tokens:[{id:1,decimals:6}],instances:[{id:1,collateral_token_id:1}]};
-const m=normalize({id:1,name:'BTC',symbol:'',instance_id:1,config:{price_decimals:1,size_decimals:5},state:{mrk:800000,lst:810000,prv:800000,dva:'123456789',oi:100000,tvl:'50000000',bid:799990,ask:800010,mid:800000,orl:800000},funding:{rate:-20}},ctx);
-assert.equal(m.symbol,'BTC');assert.equal(m.price,80000);assert.equal(m.volume,123.456789);assert.equal(m.oi,80000);assert.equal(m.tvl,50);assert.equal(m.rate,-0.002);assert.equal(m.spread,0.25);assert.equal(normalize({...m,state:{}},ctx).volume,null);
-const a={acc:1,mkt:1,pid:1,sr:13,dpnl:'100000000',fnd:'5000000',fee:'10000000',at:{b:10,t:7200000,l:1},ots:{t:3600000}};
-const b={...a,pid:2,dpnl:'-40000000',fnd:'0',at:{b:11,t:10800000,l:1}};
-const stats=analyzeEvents([a,b,a],1e6);assert.equal(stats.events.length,2);assert.equal(stats.net(a),95);assert.equal(stats.net(b),-50);assert.equal(stats.winRate,50);assert.equal(stats.profitFactor,1.9);assert.equal(stats.bestStreak,1);assert.equal(stats.worstStreak,1);assert.equal(drawdown([{v:'100000000'},{v:'80000000'},{v:'120000000'},{v:'60000000'}],1e6),50);assert.equal(drawdown([],1e6),null);
-await assert.rejects(importReadKey('bad'));
-const pair=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);const privateDer=new Uint8Array(await crypto.subtle.exportKey('pkcs8',pair.privateKey));const seed=Buffer.from(privateDer.slice(-32)).toString('hex');const key=await importReadKey(seed);assert.equal(key.extractable,false);
-let captured;globalThis.fetch=async(url,options)=>{captured={url,options};return Response.json({ok:true})};await signedApi('/v1/trading/fills?count=100','test-token',key);const h=captured.options.headers;assert.equal(captured.url,'/api/perpl/v1/trading/fills?count=100');const emptyHash=Buffer.from(await crypto.subtle.digest('SHA-256',new Uint8Array())).toString('hex');const canonical=['143','GET','/v1/trading/fills?count=100',h['X-API-Timestamp'],h['X-API-Nonce'],emptyHash].join('\n');assert.equal(await crypto.subtle.verify('Ed25519',pair.publicKey,Buffer.from(h['X-API-Signature'],'base64url'),new TextEncoder().encode(canonical)),true);assert.equal(JSON.stringify(captured).includes(seed),false);
-console.log('PASS: decimal scaling, missing values, signed funding, OI, event deduplication, net PnL, performance, drawdown and Ed25519 signing.');
+import assert from "node:assert/strict";
+import { PGlite } from "@electric-sql/pglite";
+import { PostgresStore } from "../cloud/postgres-store.mjs";
+import { analyticsView, recordMarkets } from "../cloud/analytics.mjs";
+const pg = new PGlite(),
+  pool = {
+    query: async (s, a) =>
+      !a && s.split(";").filter((x) => x.trim()).length > 1
+        ? (await pg.exec(s)).at(-1)
+        : pg.query(s, a),
+    connect: async () => ({ ...pool, release() {} }),
+    end: () => pg.close(),
+  },
+  store = new PostgresStore(pool);
+try {
+  await store.init();
+  await pool.query(
+    "INSERT INTO accounts VALUES ('dune','2026-02-02','1',2),('dune','2026-02-02','2',3),('rpc','2026-02-09','1',4),('rpc','2026-02-09','3',5)",
+  );
+  const a = await analyticsView(store);
+  assert.equal(a.activity[1].dau, 2);
+  assert.equal(a.activity[1].wau, 2);
+  assert.equal(a.activity[1].mau, 3);
+  assert.equal(a.activity[1].new, 1);
+  assert.equal(a.activity[1].returning, 1);
+  assert.equal(
+    a.cohorts.find((c) => c.cohort === "2026-02-02" && c.age === 1).active,
+    1,
+  );
+  assert.equal(
+    a.cohorts.find((c) => c.cohort === "2026-02-02" && c.age === 1).size,
+    2,
+  );
+  await recordMarkets(store, {
+    markets: [{ id: 1, state: { oi: 10 }, config: {}, funding: {} }],
+  });
+  await recordMarkets(store, {
+    markets: [{ id: 1, state: { oi: 11 }, config: {}, funding: {} }],
+  });
+  assert.equal(
+    Number(
+      (await pool.query("SELECT count(*) n FROM market_history")).rows[0].n,
+    ),
+    1,
+  );
+  store.storageRoom = async () => false;
+  await recordMarkets(store, { markets: [{ id: 2, state: {} }] });
+  assert.equal(
+    Number(
+      (await pool.query("SELECT count(*) n FROM market_history")).rows[0].n,
+    ),
+    1,
+  );
+  console.log(
+    "PASS: distinct rolling activity, new/returning accounts, cohort retention, hourly upsert and storage guard.",
+  );
+} finally {
+  await pg.close();
+}

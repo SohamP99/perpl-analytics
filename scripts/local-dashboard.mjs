@@ -17,7 +17,7 @@ const out=path.join(root,'.sites-runtime','local-dashboard');
 await mkdir(out,{recursive:true});
 const diagnosticFile=path.join(root,'.sites-runtime','local-connection.log');
 const log=async(message)=>{console.log(message);await appendFile(diagnosticFile,new Date().toISOString()+' '+message+'\n')};
-await log('Starting Perpl Pulse; PID '+process.pid+'; Node '+process.version);
+await log('Starting Perpl Analytics; PID '+process.pid+'; Node '+process.version);
 const indexer=new Indexer();
 const summaryStore=new SummaryStore(path.join(process.env.PERPL_DATA_DIR||path.join(root,'.perpl-data'),'summaries.sqlite'));
 summaryStore.importSavedDetails(indexer.store);
@@ -27,7 +27,7 @@ const summaries=new SummaryEngine(summaryStore,{refreshWallets:async()=>{const r
 // Old raw history is retained, but this launcher never resumes its backfill.
 if(process.env.PERPL_SUMMARY_REFRESH_DISABLED!=='1')summaries.start();
 await build({stdin:{contents:"import React from 'react'; import {createRoot} from 'react-dom/client'; import Dashboard from './components/dashboard'; import './app/globals.css'; createRoot(document.getElementById('root')).render(<Dashboard/>);",resolveDir:root,sourcefile:'local-entry.tsx',loader:'tsx'},bundle:true,outdir:out,entryNames:'dashboard',assetNames:'[name]-[hash]',format:'esm',platform:'browser',target:['es2022'],minify:true,define:{'process.env.NODE_ENV':'"production"'},tsconfig:path.join(root,'tsconfig.json'),logLevel:'warning'});
-const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0d0b12"><title>Perpl Pulse · Protocol & Wallet Intelligence</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/dashboard.css"></head><body><div id="root"></div><script type="module" src="/dashboard.js"></script></body></html>';
+const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0d0b12"><title>Perpl Analytics · Protocol & Wallet Intelligence</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/dashboard.css"></head><body><div id="root"></div><script type="module" src="/dashboard.js"></script></body></html>';
 const handler=async(req,res)=>{try{
  const host=req.headers.host||'';if(!['127.0.0.1:'+port,'localhost:'+port,'[::1]:'+port].includes(host)){res.writeHead(403);res.end('Invalid host');return}
  const url=new URL(req.url,'http://'+host);
@@ -78,7 +78,7 @@ try{
  const base='http://localhost:'+port;
  await probe('http://127.0.0.1:'+port+'/healthz');
  if(hasIPv6)await probe('http://[::1]:'+port+'/healthz');
- const page=await probe(base+'/');if(!page.includes('Perpl Pulse'))throw Error('Dashboard page validation failed');
+ const page=await probe(base+'/');if(!page.includes('Perpl Analytics'))throw Error('Dashboard page validation failed');
  await log('VERIFIED HTTP 200: '+base);
  await log('IPv4: http://127.0.0.1:'+port+(hasIPv6?' | IPv6: http://[::1]:'+port:''));
  await log('Keep this window open. Connection log: '+diagnosticFile);

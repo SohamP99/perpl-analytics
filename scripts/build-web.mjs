@@ -45,6 +45,7 @@ for (const file of [
   "favicon.svg",
   "perpl-logo.svg",
   "monad-logo.svg",
+  "envio-logo.png",
   "og.svg",
   "og.png",
   "apple-touch-icon.png",
@@ -57,3 +58,4 @@ await writeFile(
 console.log(
   "Built Vercel frontend. Live operation requires the cloud backend and durable storage.",
 );
+

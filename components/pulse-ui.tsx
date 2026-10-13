@@ -62,65 +62,20 @@ export function Metric({
   trend?: number[];
   loading?: boolean;
 }) {
-  const valid = trend?.filter(Number.isFinite) || [],
-    lo = Math.min(...valid),
-    hi = Math.max(...valid);
   return (
     <div className="metric">
       <div className="metric-top">
         <span>{title}</span>
-        <span
-          title={definition || String(note || title)}
-          aria-label={"About " + title}
-          tabIndex={0}
-        >
-          ⓘ
-        </span>
       </div>
       {loading ? (
         <div className="skeleton metric-skeleton" />
       ) : (
-        <strong
-          title={
-            value === "—"
-              ? "Not available for this source or coverage"
-              : undefined
-          }
-        >
-          {value}
-        </strong>
+        <strong>{value}</strong>
       )}
-      {change != null && (
-        <div className={change < 0 ? "red" : "green"}>
-          {change < 0 ? "▼" : "▲"} {Math.abs(change).toFixed(1)}% vs previous
-          period
-        </div>
-      )}
-      {valid.length > 1 && (
-        <svg
-          className="sparkline"
-          viewBox="0 0 150 28"
-          aria-label={title + " trend"}
-        >
-          <polyline
-            fill="none"
-            stroke="var(--purple)"
-            strokeWidth="1.5"
-            points={valid
-              .map(
-                (v, i) =>
-                  (i / (valid.length - 1)) * 150 +
-                  "," +
-                  (26 - ((v - lo) / (hi - lo || 1)) * 24),
-              )
-              .join(" ")}
-          />
-        </svg>
-      )}
-      {note && <div className="metric-note">{note}</div>}
     </div>
   );
 }
+
 export function Modal({
   title,
   close,

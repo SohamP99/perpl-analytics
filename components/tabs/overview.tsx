@@ -1,10 +1,13 @@
+import { useState } from "react";
+import { MarketFilter } from "../market-filter";
 import { money, Raw } from "@/lib/perpl";
 import { delta, inRange, marketColor, total } from "@/lib/analytics";
 import { ChartCard } from "../chart-card";
 import { Metric } from "../pulse-ui";
 import { TabProps, useAnalytics } from "../analytics-context";
 export default function Overview(p: TabProps) {
-  const { range, end, market } = useAnalytics(),
+  const [market, setMarket] = useState("all");
+  const { range, end } = useAnalytics(),
     daily = p.protocol?.daily || [],
     rows = inRange(daily, range, end),
     vol = p.volumeDaily.map((r) => ({
@@ -36,73 +39,65 @@ export default function Overview(p: TabProps) {
     <>
       <div className="metric-grid">
         <Metric
-          title={`${range} volume`}
-          value={money(total(inRange(vol, range, end), "v"))}
-          loading={p.loading}
-          change={delta(vol, "v", range, end)}
-          trend={inRange(vol, range, end)
-            .slice(-30)
-            .map((r) => r.v)}
-          note="Public candles · selected markets"
+          title="Volume (24h)"
+          value={money(
+            p.markets.length && p.markets.every((m) => m.volume != null)
+              ? p.markets.reduce((s, m) => s + m.volume, 0)
+              : null,
+          )}
+          loading={!p.markets.length}
         />
+        <Metric title="Open interest" value={money(oi)} />
+        <Metric title="Total value locked" value={money(net)} />
         <Metric
-          title="Open interest"
-          value={money(oi)}
-          note="Current market snapshot"
-          definition="Open outstanding notional at current mark prices. No historical delta until comparable snapshots exist."
-        />
-        <Metric
-          title="Net deposits (TVL proxy)"
-          value={money(net)}
-          note="Cumulative · all markets"
-          definition="Collateral deposits less withdrawals. Excludes trader PnL; not the market collateral sum."
-        />
-        <Metric
-          title="Fees collected"
-          value={money(total(inRange(feeRows, range, end), "allFees"))}
+          title="Fees collected (all time)"
+          value={money(
+            p.protocol
+              ? p.protocol.fees +
+                  p.protocol.positionProtocolFees +
+                  p.protocol.insuranceFees
+              : null,
+          )}
           loading={!p.protocol}
-          change={delta(feeRows, "allFees", range, end)}
-          trend={inRange(feeRows, range, end)
-            .slice(-30)
-            .map((r: Raw) => r.allFees)}
-          note={`${range} · all fee categories`}
-          definition="Trading fees (including builder share) plus protocol and insurance position fees. Not net revenue."
         />
-      </div>
-      <div className="metric-grid">
         <Metric
-          title="Active traders"
-          value={
-            activity?.activeUsers == null
-              ? "—"
-              : Number(activity.activeUsers).toLocaleString()
-          }
-          note={
+          title={
             activity?.mode === "rolling"
-              ? "24h · distinct accounts"
-              : "Latest complete UTC day"
+              ? "Active traders (24h)"
+              : "Active traders (yesterday)"
           }
+          value={activity?.activeUsers?.toLocaleString() ?? "—"}
         />
         <Metric
-          title="New accounts"
-          value={total(rows, "newUsers")?.toLocaleString() ?? "—"}
-          change={delta(daily, "newUsers", range, end)}
-          note={`${range} registrations · not people`}
+          title="Users (all time)"
+          value={p.protocol?.newAccounts?.toLocaleString() ?? "—"}
         />
         <Metric
-          title="Net flow"
-          value={money(total(rows, "v"))}
-          note={`${range} · all markets`}
+          title={
+            activity?.mode === "rolling"
+              ? "Net flow (24h)"
+              : "Net flow (yesterday)"
+          }
+          value={money(
+            activity ? activity.deposits - activity.withdrawals : null,
+          )}
         />
         <Metric
-          title="Liquidations"
-          value={total(rows, "liquidations")?.toLocaleString() ?? "—"}
-          note={`${range} event count · partial exits included`}
+          title="Liquidations (all time)"
+          value={p.protocol?.liquidations?.toLocaleString() ?? "—"}
         />
       </div>
       <div className="chart-grid">
         <ChartCard
           title="Total volume"
+          filters={
+            <MarketFilter
+              title="Total volume"
+              markets={p.chartMarkets}
+              value={market}
+              onChange={setMarket}
+            />
+          }
           data={vol}
           series={[{ key: "v", label: "Volume" }]}
           cumulative
@@ -142,9 +137,6 @@ export default function Overview(p: TabProps) {
                 </button>
               ))}
           </div>
-          <p className="chart-note">
-            Select a market to explore prices and funding.
-          </p>
         </section>
       </div>
       <div className="secondary-grid">

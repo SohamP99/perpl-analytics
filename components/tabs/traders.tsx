@@ -1,16 +1,6 @@
-import { useState } from "react";
-import {
-  Bar,
-  BarChart,
-  Cell,
-  CartesianGrid,
-  ResponsiveContainer,
-  Scatter,
-  ScatterChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { useState, useMemo } from "react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { traderGroups } from "@/lib/dashboard-math";
 import { Raw, money, pct, short } from "@/lib/perpl";
 import { Metric } from "../pulse-ui";
 import { TabProps } from "../analytics-context";
@@ -29,35 +19,24 @@ export default function Traders(p: TabProps) {
       volume
         ? (rank.slice(0, n).reduce((s, r) => s + Number(r.v), 0) / volume) * 100
         : null;
-  const bins = [
-    { name: "< −$100K", v: 0 },
-    { name: "−$100K…−$10K", v: 0 },
-    { name: "−$10K…$0", v: 0 },
-    { name: "$0…$10K", v: 0 },
-    { name: "$10K…$100K", v: 0 },
-    { name: "> $100K", v: 0 },
-  ];
-  for (const r of all) {
-    const v = Number(r.p) / 1e6;
-    bins[
-      v < -1e5 ? 0 : v < -1e4 ? 1 : v < 0 ? 2 : v < 1e4 ? 3 : v < 1e5 ? 4 : 5
-    ].v++;
-  }
+  const groups = useMemo(() => traderGroups(all), [p.leaderboard]);
+  const count = groups.reduce((n, g) => n + g.wallets, 0),
+    groupVolume = groups.reduce((n, g) => n + g.volume, 0);
   return (
     <>
       <div className="metric-grid three">
         <Metric
-          title="Top 10 volume share"
+          title="Top 10 volume share (all time)"
           value={share(10) == null ? "—" : share(10)!.toFixed(1) + "%"}
           note="Listed wallets · all time"
         />
         <Metric
-          title="Top 100 volume share"
+          title="Top 100 volume share (all time)"
           value={share(100) == null ? "—" : share(100)!.toFixed(1) + "%"}
           note="Listed wallets · all time"
         />
         <Metric
-          title="Profitable wallets"
+          title="Profitable wallets (all time)"
           value={
             all.length
               ? (
@@ -70,105 +49,111 @@ export default function Traders(p: TabProps) {
         />
       </div>
       <div className="secondary-grid">
-        <section className="panel">
-          <h2>PnL distribution</h2>
-          <div className="analytics-plot">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={bins}
-                layout="vertical"
-                margin={{ left: 15, right: 20 }}
-              >
-                <CartesianGrid horizontal={false} stroke="var(--border)" />
-                <XAxis
-                  type="number"
-                  tick={{ fill: "var(--muted)", fontSize: 12 }}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={120}
-                  tick={{ fill: "var(--muted)", fontSize: 12 }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--panel)",
-                    color: "var(--text)",
-                    border: "1px solid var(--border)",
-                  }}
-                />
-                <Bar dataKey="v" name="Wallets" isAnimationActive={false}>
-                  {bins.map((b, i) => (
-                    <Cell
-                      key={b.name}
-                      fill={i < 3 ? "var(--red)" : "var(--green)"}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+        <section className="panel trader-summary">
+          <div className="panel-head">
+            <h2>Wallet profitability</h2>
+            <span className="muted">All time</span>
           </div>
-          <p className="chart-note">
-            Zero-PnL wallets are in $0…$10K; excluded from profitable share.
-          </p>
+          <div className="profitability-total">
+            <strong>{count.toLocaleString()}</strong>
+            <span>Listed wallets</span>
+          </div>
+          <div className="profitability-bars">
+            {groups.map((g) => (
+              <div key={g.name}>
+                <div>
+                  <b>{g.name}</b>
+                  <span>
+                    {g.wallets.toLocaleString()}{" "}
+                    <em>
+                      {count ? ((g.wallets / count) * 100).toFixed(1) : "0"}%
+                    </em>
+                  </span>
+                </div>
+                <div className="profit-track">
+                  <span
+                    style={{
+                      width: (count ? (g.wallets / count) * 100 : 0) + "%",
+                      background: g.color,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
-        <section className="panel">
-          <h2>PnL versus volume</h2>
-          <div className="analytics-plot">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ left: 10, right: 20, top: 15 }}>
-                <CartesianGrid stroke="var(--border)" />
-                <XAxis
-                  type="number"
-                  dataKey="volume"
-                  name="Volume"
-                  scale="log"
-                  domain={["auto", "auto"]}
-                  tickFormatter={(v) => money(v)}
-                  tick={{ fontSize: 12, fill: "var(--muted)" }}
-                />
-                <YAxis
-                  type="number"
-                  dataKey="pnl"
-                  name="PnL"
-                  tickFormatter={(v) => money(v)}
-                  tick={{ fontSize: 12, fill: "var(--muted)" }}
-                />
-                <Tooltip
-                  cursor={{ strokeDasharray: "3 3" }}
-                  contentStyle={{
-                    background: "var(--panel)",
-                    color: "var(--text)",
-                  }}
-                  formatter={(v) => money(Number(v))}
-                />
-                <Scatter
-                  data={all
-                    .filter((r) => Number(r.v) > 0)
-                    .map((r) => ({
-                      ...r,
-                      volume: Number(r.v) / 1e6,
-                      pnl: Number(r.p) / 1e6,
-                    }))}
-                  onClick={(r: any) => r.a && p.openWallet(r.a)}
-                  isAnimationActive={false}
-                >
-                  {all
-                    .filter((r) => Number(r.v) > 0)
-                    .map((r) => (
-                      <Cell
-                        key={r.a}
-                        fill={Number(r.r) < 0 ? "var(--red)" : "var(--green)"}
-                      />
-                    ))}
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer>
+        <section className="panel trader-summary">
+          <div className="panel-head">
+            <h2>Volume by wallet profitability</h2>
+            <span className="muted">All time</span>
           </div>
-          <p className="chart-note">
-            Log volume axis · select a point or wallet below · leaderboard
-            sample.
-          </p>
+          <div className="profitability-donut">
+            <div className="donut-plot">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={groups}
+                    dataKey="volume"
+                    nameKey="name"
+                    innerRadius="65%"
+                    outerRadius="90%"
+                    isAnimationActive={false}
+                    stroke="var(--panel)"
+                    strokeWidth={3}
+                  >
+                    {groups.map((g) => (
+                      <Cell key={g.name} fill={g.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    content={({ active, payload }: any) => {
+                      if (!active || !payload?.length) return null;
+                      const g = payload[0].payload;
+                      return (
+                        <div className="unified-tooltip">
+                          <b>{g.name} wallets</b>
+                          <div>
+                            <span>Volume</span>
+                            <strong>{money(g.volume)}</strong>
+                          </div>
+                          <div>
+                            <span>Share</span>
+                            <strong>
+                              {groupVolume
+                                ? ((g.volume / groupVolume) * 100).toFixed(1)
+                                : 0}
+                              %
+                            </strong>
+                          </div>
+                          <div>
+                            <span>Wallets</span>
+                            <strong>{g.wallets.toLocaleString()}</strong>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="profitability-legend">
+              {groups.map((g) => (
+                <div key={g.name}>
+                  <b>
+                    <i style={{ background: g.color }} />
+                    {g.name}
+                  </b>
+                  <strong>{money(g.volume)}</strong>
+                  <span>
+                    {groupVolume
+                      ? ((g.volume / groupVolume) * 100).toFixed(1)
+                      : 0}
+                    %
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
       </div>
       <section className="panel">

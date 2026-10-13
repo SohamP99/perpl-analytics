@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 export const TABS = [
   "Overview",
   "Markets",
@@ -38,13 +38,24 @@ function read() {
 }
 export function useNavigation() {
   const [nav, setNav] = useState(read);
+  const ranges = useRef<Record<string, string>>({ [nav.tab]: nav.range });
   useEffect(() => {
-    const on = () => setNav(read());
+    const on = () => {
+      const n = read();
+      ranges.current[n.tab] = n.range;
+      setNav(n);
+    };
     window.addEventListener("popstate", on);
     return () => window.removeEventListener("popstate", on);
   }, []);
   const update = (patch: Partial<ReturnType<typeof read>>) => {
-    const n = { ...nav, ...patch },
+    ranges.current[nav.tab] = nav.range;
+    const nextRange =
+      patch.range ??
+      (patch.tab && patch.tab !== nav.tab
+        ? ranges.current[patch.tab] || "All"
+        : nav.range);
+    const n = { ...nav, ...patch, range: nextRange, market: "all" },
       p = new URLSearchParams();
     p.set("view", n.view);
     if (n.view === "protocol") {

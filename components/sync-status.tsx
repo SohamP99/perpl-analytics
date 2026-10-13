@@ -18,28 +18,24 @@ export default memo(function SyncStatus({
   const seconds = Math.max(0, Math.ceil((nextSync - now) / 1000));
   return (
     <div className="sync-status">
-      <span className={live ? "green" : "muted"}>
-        ● {live ? "Live prices" : "Delayed prices"}
-      </span>
-      <span
-        title={updated ? new Date(updated).toISOString() : "Awaiting snapshot"}
-      >
-        Aggregates every 5 min
+      <span>
+        Last synced{" "}
+        {updated
+          ? new Date(updated).toLocaleString("en-GB", {
+              timeZone: "UTC",
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            }) + " UTC"
+          : "—"}
       </span>
       <small data-testid="sync-countdown">
         {status === "Syncing"
           ? "Syncing…"
-          : `Next ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`}{" "}
-        ·{" "}
-        {updated
-          ? "synced " +
-            new Date(updated).toLocaleTimeString("en-GB", {
-              timeZone: "UTC",
-              hour: "2-digit",
-              minute: "2-digit",
-            }) +
-            " UTC"
-          : "Connecting"}
+          : `Next sync in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`}
       </small>
     </div>
   );

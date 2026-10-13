@@ -26,7 +26,7 @@ export default function Fees(p: TabProps) {
             : null,
       };
     }),
-    rows = inRange(daily, range, end);
+    rows = daily;
   return (
     <>
       <div className="metric-grid">
@@ -38,7 +38,7 @@ export default function Fees(p: TabProps) {
         ].map(([key, label]) => (
           <Metric
             key={key}
-            title={label}
+            title={label + " (all time)"}
             value={money(total(rows, key))}
             change={delta(daily, key, range, end)}
             note={`${range} · all markets`}

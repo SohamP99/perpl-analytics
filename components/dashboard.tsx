@@ -135,7 +135,7 @@ export default function Dashboard() {
       value={{
         range: nav.range,
         end: protocol?.coverage?.throughTime || updated || Date.now(),
-        market: nav.market,
+        market: "all",
         markets,
         openMarket,
       }}
@@ -232,54 +232,22 @@ export default function Dashboard() {
                   </button>
                 ))}
               </nav>
-              <div
-                className={
-                  "global-filters " + (mobileFilters ? "expanded" : "")
-                }
-              >
-                <button
-                  className="mobile-filter-trigger secondary"
-                  onClick={() => setMobileFilters(!mobileFilters)}
-                >
-                  Filters · {nav.range} {mobileFilters ? "×" : ""}
-                </button>
-                <div className="filter-content">
-                  <div className="period-picker" aria-label="Date range">
+              {nav.tab !== "Traders" && (
+                <div className="timeline-filter">
+                  <span>Chart timeframe</span>
+                  <div className="period-picker" aria-label="Chart timeframe">
                     {RANGES.map((r) => (
                       <button
                         key={r}
                         aria-pressed={nav.range === r}
-                        className={r === nav.range ? "active" : ""}
+                        className={nav.range === r ? "active" : ""}
                         onClick={() => update({ range: r })}
                       >
                         {r}
                       </button>
                     ))}
                   </div>
-                  <label>
-                    Market{" "}
-                    <select
-                      aria-label="Global market filter"
-                      value={nav.market}
-                      onChange={(e) => update({ market: e.target.value })}
-                    >
-                      <option value="all">All markets</option>
-                      {chartMarkets.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.symbol}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <span className="muted">UTC · AUSD ≈ USD</span>
                 </div>
-              </div>
-              {nav.market !== "all" && (
-                <p className="chart-note">
-                  Market filter applies to market-level charts and liquidation
-                  details. Protocol fees, flows and account activity remain
-                  all-market totals.
-                </p>
               )}
               {protocolError && (
                 <div className="alert">

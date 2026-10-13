@@ -130,7 +130,7 @@ export function ChartCard({
   const { range, end } = useAnalytics(),
     [period, setPeriod] = useState("D"),
     [hidden, setHidden] = useState<string[]>([]),
-    [cum, setCum] = useState(cumulative),
+    [cum, setCum] = useState(false),
     [mode, setMode] = useState(kind),
     [table, setTable] = useState(false),
     [log, setLog] = useState(false),
@@ -169,6 +169,7 @@ export function ChartCard({
           if (s.aggregation === "mean" && d.__n[s.key])
             d[s.key] /= d.__n[s.key];
         const sum = visible.reduce((n, s) => n + (d[s.key] || 0), 0);
+        d.__total = visible.every((s) => d[s.key] != null) ? sum : null;
         acc += sum;
         d.__cumulative = acc;
         const next = new Date(d.t);
@@ -191,16 +192,21 @@ export function ChartCard({
           : unit === "bps"
             ? count(v) + " bps"
             : count(v);
-  const pointTotal =
-    visible.length === 1 && visible[0].aggregation !== "mean"
-      ? visible[0].aggregation === "last"
-        ? (chart.at(-1)?.[visible[0].key] ?? null)
-        : total(chart, visible[0].key)
+  const additive =
+    visible.length > 0 &&
+    visible.every((s) => !s.aggregation || s.aggregation === "sum");
+  const headlineRows = data.map((d) => ({
+    ...d,
+    __total: visible.every((s) => Number.isFinite(d[s.key]))
+      ? visible.reduce((n, s) => n + d[s.key], 0)
+      : null,
+  }));
+  const pointTotal = additive
+    ? total(chart, "__total")
+    : visible.length === 1 && visible[0].aggregation === "last"
+      ? chart.at(-1)?.[visible[0].key]
       : null;
-  const change =
-    visible.length === 1 && !visible[0].aggregation
-      ? delta(data, visible[0].key, range, end)
-      : null;
+  const change = additive ? delta(headlineRows, "__total", range, end) : null;
   const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
     logAllowed = chart.every((d) =>
       visible.every((s) => d[s.key] == null || d[s.key] > 0),
@@ -264,7 +270,8 @@ export function ChartCard({
             </div>
           </details>
         </div>
-        <div className="inline">
+        <div className="inline chart-header-filters">
+          {filters}
           {buckets && (
             <div className="period-picker">
               {["D", "W", "M"].map((p) => (
@@ -328,25 +335,20 @@ export function ChartCard({
           </details>
         </div>
       </div>
-      {pointTotal != null && (
-        <div className="chart-headline">
-          {format(pointTotal)}
-          {change != null && (
-            <small className={change < 0 ? "red" : "green"}>
-              {change < 0 ? "▼" : "▲"} {Math.abs(change).toFixed(1)}% vs
-              previous period
-            </small>
-          )}
-        </div>
-      )}
+      <div className="chart-headline">
+        {pointTotal != null ? (
+          format(pointTotal)
+        ) : (
+          <span aria-hidden="true">&nbsp;</span>
+        )}
+        {change != null && (
+          <small className={change < 0 ? "red" : "green"}>
+            {change < 0 ? "▼" : "▲"} {Math.abs(change).toFixed(1)}% vs previous
+            period
+          </small>
+        )}
+      </div>
       <div className="chart-controls">
-        <div className="chart-filters">
-          {filters || (
-            <span className="muted">
-              {range} · {source}
-            </span>
-          )}
-        </div>
         <div className="chart-display">
           {percentStack && (
             <button
@@ -390,7 +392,7 @@ export function ChartCard({
           aria-label={`Loading ${title}`}
         />
       ) : !chart.length ? (
-        <div className="chart-empty">No observations in this range. {note}</div>
+        <div className="chart-empty">No observations in this range.</div>
       ) : table ? (
         <div className="table-wrap chart-table">
           <table>
@@ -474,7 +476,9 @@ export function ChartCard({
                         ? "Percent"
                         : unit === "bps"
                           ? "Basis points"
-                          : "Count",
+                          : unit === "daily-traders"
+                            ? "Avg / day"
+                            : "Count",
                   position: "insideTopLeft",
                   dy: -22,
                   fill: "var(--muted)",
@@ -583,9 +587,7 @@ export function ChartCard({
         ))}
         {cum && allowCumulative && <span>─ Cumulative (right axis)</span>}
       </div>
-      <div className="chart-note">
-        UTC · current bucket partial{note ? " · " + note : ""}
-      </div>
+
       {message && <p role="status">{message}</p>}
     </section>
   );

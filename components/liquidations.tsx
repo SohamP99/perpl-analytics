@@ -28,7 +28,6 @@ export default function Liquidations({
   const [rows, setRows] = useState<Raw[]>([]),
     [loaded, setLoaded] = useState(false),
     [error, setError] = useState(""),
-    [market, setMarket] = useState("all"),
     [side, setSide] = useState("all"),
     [search, setSearch] = useState(""),
     [page, setPage] = useState(0),
@@ -75,26 +74,19 @@ export default function Liquidations({
   const filtered = events
     .filter(
       (r) =>
-        r.time >= rangeStart(scope.range, scope.end) &&
-        r.time <= scope.end &&
-        (scope.market === "all" || r.market === scope.market) &&
         (!whales || r.usd > 100000) &&
-        (market === "all" || r.market === market) &&
         (side === "all" || r.side === side) &&
         (!search ||
           (r.address || "").toLowerCase().includes(search.toLowerCase()) ||
           r.account === search),
     )
     .sort((a, b) => (b[sort] ?? -Infinity) - (a[sort] ?? -Infinity));
-  const valued = filtered.filter((r) => r.usd != null),
+  const valued = events.filter((r) => r.usd != null),
     value = valued.reduce((s, r) => s + r.usd, 0),
     available = loaded && valued.length > 0;
-  useEffect(
-    () => setPage(0),
-    [market, side, search, sort, scope.market, scope.range, whales],
-  );
+  useEffect(() => setPage(0), [side, search, sort, whales]);
   const detailDays = new Map<number, Raw>();
-  for (const r of filtered) {
+  for (const r of events) {
     if (r.usd == null) continue;
     const t = Math.floor(r.time / DAY) * DAY,
       d = detailDays.get(t) || {
@@ -115,7 +107,7 @@ export default function Liquidations({
     <>
       <div className="metric-grid three">
         <Metric
-          title="Liquidation events"
+          title="Liquidations (all time)"
           value={
             protocol?.coverage?.historicalImported
               ? Number(protocol.liquidations).toLocaleString()
@@ -124,12 +116,12 @@ export default function Liquidations({
           note="All recorded periods · unfiltered count"
         />
         <Metric
-          title="Liquidated value"
+          title="Liquidated value (recorded)"
           value={available ? money(value) : "—"}
           note={`${valued.length.toLocaleString()} priced records${valued.length < filtered.length ? " · partial" : ""}`}
         />
         <Metric
-          title="Average liquidation"
+          title="Average liquidation (recorded)"
           value={
             available && valued.length ? money(value / valued.length) : "—"
           }
@@ -236,18 +228,6 @@ export default function Liquidations({
             <option value="all">Both sides</option>
             <option>Long</option>
             <option>Short</option>
-          </select>
-          <select
-            aria-label="Liquidation market"
-            value={market}
-            onChange={(e) => setMarket(e.target.value)}
-          >
-            <option value="all">All markets</option>
-            {allMarkets.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.symbol}
-              </option>
-            ))}
           </select>
           <select
             aria-label="Sort liquidations"

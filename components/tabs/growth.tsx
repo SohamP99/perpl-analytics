@@ -9,24 +9,23 @@ export default function Growth(p: TabProps) {
     weeks = [...new Set(cohorts.map((r: Raw) => r.cohort))] as string[];
   return (
     <>
-      <div className="metric-grid">
+      <div className="metric-grid three">
         <Metric
-          title="Daily active accounts"
-          value={last?.dau?.toLocaleString() ?? "—"}
+          title={
+            p.protocol?.activity24h?.mode === "rolling"
+              ? "Active traders (24h)"
+              : "Active traders (yesterday)"
+          }
+          value={p.protocol?.activity24h?.activeUsers?.toLocaleString() ?? "—"}
           note="Latest recorded UTC day"
         />
         <Metric
-          title="Weekly active accounts"
-          value={last?.wau?.toLocaleString() ?? "—"}
+          title="Users (all time)"
+          value={p.protocol?.newAccounts?.toLocaleString() ?? "—"}
           note="Rolling 7 UTC days"
         />
         <Metric
-          title="Monthly active accounts"
-          value={last?.mau?.toLocaleString() ?? "—"}
-          note="Rolling 30 UTC days"
-        />
-        <Metric
-          title="Stickiness"
+          title="Stickiness (DAU / MAU)"
           value={
             last?.stickiness != null ? last.stickiness.toFixed(1) + "%" : "—"
           }
@@ -49,17 +48,19 @@ export default function Growth(p: TabProps) {
         />
         <ChartCard
           title="New and returning traders"
+          allowCumulative={false}
           data={activity}
           series={[
-            { key: "new", label: "First recorded fill" },
-            { key: "returning", label: "Returning" },
+            { key: "new", label: "New", aggregation: "mean" },
+            { key: "returning", label: "Returning", aggregation: "mean" },
           ]}
-          unit="count"
+          unit="daily-traders"
           stack
-          note="New means first fill in covered history; accounts, not people."
+          note="New means first fill in covered history. Weekly and monthly buckets show average daily traders, not unique traders summed across days."
         />
         <ChartCard
           title="Maker and taker fills"
+          allowCumulative={false}
           data={p.protocol?.daily || []}
           series={[
             { key: "makerFills", label: "Maker" },
@@ -86,11 +87,7 @@ export default function Growth(p: TabProps) {
       </div>
       <section className="panel">
         <h2>Weekly retention cohorts</h2>
-        <p className="chart-note">
-          Cohort = first recorded fill week · % active again in week N ·
-          incomplete latest recorded week marked * · all markets · full recorded
-          history.
-        </p>
+        <p className="chart-note">Weekly return rate · * partial week</p>
         <div className="table-wrap heatmap">
           <table>
             <thead>
@@ -171,8 +168,6 @@ export default function Growth(p: TabProps) {
       <p className="chart-note">
         Top 1% of accounts contribute{" "}
         {p.analytics?.concentration?.toFixed(1) ?? "—"}% of recorded fills.
-        Registration-to-first-trade conversion is unavailable without complete
-        historical account creation mapping.
       </p>
     </>
   );

@@ -9,7 +9,7 @@ export default function Flows(p: TabProps) {
       ...r,
       out: -r.withdrawals,
     })),
-    rows = inRange(daily, range, end),
+    rows = daily,
     deposits = total(rows, "deposits"),
     n = total(rows, "depositCount"),
     baseline = daily
@@ -19,22 +19,22 @@ export default function Flows(p: TabProps) {
     <>
       <div className="metric-grid">
         <Metric
-          title="Deposits"
+          title="Deposits (all time)"
           value={money(deposits)}
           note={`${n?.toLocaleString() ?? "—"} deposits · ${range}`}
         />
         <Metric
-          title="Withdrawals"
+          title="Withdrawals (all time)"
           value={money(total(rows, "withdrawals"))}
           note={`${total(rows, "withdrawalCount")?.toLocaleString() ?? "—"} withdrawals · ${range}`}
         />
         <Metric
-          title="Average deposit"
+          title="Average deposit (all time)"
           value={money(n && deposits != null ? deposits / n : null)}
           note="Amount / event count"
         />
         <Metric
-          title="Net inflows"
+          title="Net inflows (all time)"
           value={money(total(rows, "v"))}
           note={`${range} · all markets`}
         />

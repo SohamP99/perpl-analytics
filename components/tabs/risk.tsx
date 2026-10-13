@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Raw, pct, money } from "@/lib/perpl";
-import { annualRate, DAY } from "@/lib/analytics";
+import { annualRate, fundingInterval, DAY } from "@/lib/analytics";
 import { ChartCard } from "../chart-card";
 import { Metric } from "../pulse-ui";
 import { TabProps } from "../analytics-context";
@@ -8,24 +8,32 @@ import { localRead } from "../local-data";
 export default function Risk(p: TabProps) {
   const [history, setHistory] = useState<Record<string, Raw[]>>({}),
     [market, setMarket] = useState("1"),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(true);
   useEffect(() => {
     let stop = false;
+    let running = false;
     const load = async () => {
-      const results: Record<string, Raw[]> = {};
+      if (running) return;
+      running = true;
+      const queue = [...p.markets];
       let failures = 0;
-      for (const m of p.markets) {
-        if (stop) return;
-        try {
-          const d = await localRead("funding-history?market=" + m.id);
-          results[m.id] = d.rows;
-        } catch {
-          failures++;
+      const worker = async () => {
+        while (queue.length && !stop) {
+          const m = queue.shift()!;
+          try {
+            const d = await localRead("funding-history?market=" + m.id);
+            if (!stop) setHistory((old) => ({ ...old, [m.id]: d.rows || [] }));
+          } catch {
+            failures++;
+          }
         }
-      }
+      };
+      await Promise.all([worker(), worker()]);
+      running = false;
       if (!stop) {
-        setHistory(results);
-        setError(failures ? "Some funding histories unavailable" : "");
+        setLoading(false);
+        setError(failures ? "Some funding histories unavailable. Retry" : "");
       }
     };
     load();
@@ -41,8 +49,8 @@ export default function Risk(p: TabProps) {
     max = Math.max(...markets.map((m) => Math.abs(m.apr || 0)), 1),
     selected = p.markets.find((m) => String(m.id) === market),
     factor =
-      selected?.config?.funding_interval_sec > 0
-        ? (365 * 86400) / selected!.config.funding_interval_sec
+      fundingInterval(selected) > 0
+        ? (365 * 86400) / fundingInterval(selected)
         : null,
     rows = (history[market] || []).map((r) => ({
       ...r,
@@ -115,6 +123,7 @@ export default function Risk(p: TabProps) {
         </section>
         <ChartCard
           title="Funding APR history"
+          loading={loading && !history[market]}
           data={rows}
           series={[{ key: "apr", label: "APR", aggregation: "mean" }]}
           unit="percent"
@@ -139,9 +148,15 @@ export default function Risk(p: TabProps) {
       </div>
       <section className="panel">
         <h2>Funding heatmap</h2>
-        <p className="chart-note">
-          Mean daily annualised rate · last 30 days · blank means unavailable.
-        </p>
+        <p className="chart-note">Daily funding APR · 30 days</p>
+        {error && (
+          <button
+            className="secondary"
+            onClick={() => window.dispatchEvent(new Event("perpl-sync"))}
+          >
+            {error}
+          </button>
+        )}
         <div className="table-wrap heatmap">
           <table>
             <thead>
@@ -161,11 +176,11 @@ export default function Risk(p: TabProps) {
                         (r) => r.t >= d && r.t < d + DAY,
                       ),
                       v =
-                        a.length && m.config?.funding_interval_sec > 0
+                        a.length && fundingInterval(m) > 0
                           ? ((a.reduce((s, r) => s + r.rate, 0) / a.length) *
                               365 *
                               86400) /
-                            m.config.funding_interval_sec
+                            fundingInterval(m)
                           : null;
                     return (
                       <td
@@ -216,4 +231,3 @@ export default function Risk(p: TabProps) {
     </>
   );
 }
-

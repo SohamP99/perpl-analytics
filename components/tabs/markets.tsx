@@ -1,3 +1,5 @@
+import MarketShare from "../market-share";
+import { MarketFilter } from "../market-filter";
 import { useState } from "react";
 import { Raw, money, price, pct } from "@/lib/perpl";
 import { annualRate, marketColor, csv } from "@/lib/analytics";
@@ -26,16 +28,12 @@ export function MarketTable({
     ["tvl", "Market collateral"],
   ];
   const rows = markets
-    .map(
-      (m): Raw => ({
-        ...m,
-        apr: annualRate(m),
-        leverage: m.config?.initial_margin
-          ? m.config.initial_margin / 100
-          : null,
-        turnover: m.oi > 0 ? m.volume / m.oi : null,
-      }),
-    )
+    .map((m): Raw => ({
+      ...m,
+      apr: annualRate(m),
+      leverage: m.config?.initial_margin ? m.config.initial_margin / 100 : null,
+      turnover: m.oi > 0 ? m.volume / m.oi : null,
+    }))
     .filter((m) => m.symbol.toLowerCase().includes(search.toLowerCase()))
     .sort(
       (a: Raw, b: Raw) =>
@@ -134,15 +132,11 @@ export function MarketTable({
           </tbody>
         </table>
       </div>
-      <p className="chart-note">
-        Current snapshots · OI cap is not supplied by this API response. Funding
-        APR is a simple annualisation.
-      </p>
     </section>
   );
 }
 export default function Markets(p: TabProps) {
-  const { market } = useAnalytics(),
+  const [market, setMarket] = useState("all"),
     [share, setShare] = useState("volume"),
     chosen = p.chartMarkets.filter(
       (m) => market === "all" || String(m.id) === market,
@@ -153,6 +147,14 @@ export default function Markets(p: TabProps) {
       <div className="secondary-grid">
         <ChartCard
           title="Volume by market"
+          filters={
+            <MarketFilter
+              title="Volume by market"
+              markets={p.chartMarkets}
+              value={market}
+              onChange={setMarket}
+            />
+          }
           data={p.volumeDaily}
           series={chosen.map((m) => ({
             key: "m" + m.id,
@@ -180,33 +182,14 @@ export default function Markets(p: TabProps) {
               ))}
             </div>
           </div>
-          <div className="market-share-grid">
-            {p.markets
-              .filter((m) => m[share] > 0)
-              .sort((a, b) => b[share] - a[share])
-              .map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => p.openMarket(String(m.id))}
-                  style={{
-                    borderColor: marketColor(m.id),
-                    flexGrow: Math.max(1, (m[share] / sum) * 20),
-                  }}
-                >
-                  <b style={{ color: marketColor(m.id) }}>{m.symbol}</b>
-                  <strong>{((m[share] / sum) * 100).toFixed(1)}%</strong>
-                  <span>{money(m[share])}</span>
-                </button>
-              ))}
-          </div>
+          <MarketShare
+            markets={p.markets}
+            metric={share}
+            openMarket={p.openMarket}
+          />
         </section>
       </div>
-      <MarketTable
-        markets={p.markets.filter(
-          (m) => market === "all" || String(m.id) === market,
-        )}
-        openMarket={p.openMarket}
-      />
+      <MarketTable markets={p.markets} openMarket={p.openMarket} />
     </>
   );
 }

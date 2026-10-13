@@ -3501,3 +3501,302 @@ footer {
     scroll-behavior: auto !important;
   }
 }
+
+/* Concise fixed counters and chart-only controls. */
+.metric-grid {
+  row-gap: 24px;
+  column-gap: 32px;
+  padding: 16px 0 24px;
+}
+.metric-grid .metric {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+  min-height: 74px;
+}
+.metric-grid .metric-top {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+.metric-grid .metric strong {
+  font-size: 29px;
+  line-height: 1.25;
+  letter-spacing: -0.5px;
+}
+.timeline-filter {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0 10px;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.timeline-filter .period-picker button {
+  min-height: 30px;
+}
+.sub-nav {
+  margin-bottom: 16px;
+}
+.chart-card .panel-head {
+  min-height: 42px;
+  margin-bottom: 14px;
+}
+.chart-card .chart-headline {
+  min-height: 38px;
+  margin: 0 0 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.chart-headline small {
+  font-size: 11px;
+  white-space: normal;
+}
+.chart-card .chart-controls {
+  justify-content: flex-end;
+  min-height: 40px;
+  margin: 0 0 14px;
+}
+.chart-card .chart-display {
+  border-left: 0;
+  padding-left: 0;
+}
+.chart-header-filters {
+  gap: 8px;
+}
+.chart-market {
+  max-width: 128px;
+  min-height: 36px;
+}
+.chart-legend {
+  min-height: 44px;
+  align-content: start;
+}
+.sync-status {
+  gap: 8px;
+  align-items: flex-end;
+}
+.market-treemap {
+  position: relative;
+  height: 355px;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+}
+.market-treemap > button {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  border: 2px solid var(--panel);
+  border-radius: 5px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  color: #171122;
+}
+.market-treemap > button b {
+  font-size: 17px;
+}
+.market-treemap > button strong {
+  font-size: 23px;
+}
+.market-treemap > button span {
+  font-size: 12px;
+}
+.market-treemap > button:hover,
+.market-treemap > button:focus-visible {
+  filter: brightness(1.15);
+  outline: 2px solid var(--text);
+  outline-offset: -3px;
+  z-index: 2;
+}
+.treemap-tooltip {
+  pointer-events: none;
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  gap: 16px;
+  z-index: 3;
+  box-shadow: 0 4px 18px #0004;
+}
+.trader-summary {
+  min-height: 365px;
+}
+.profitability-total {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  margin: 18px 0 26px;
+}
+.profitability-total strong {
+  font-size: 30px;
+}
+.profitability-total span {
+  color: var(--muted);
+}
+.profitability-bars {
+  display: grid;
+  gap: 26px;
+}
+.profitability-bars > div > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.profitability-bars em {
+  font-style: normal;
+  color: var(--muted);
+  margin-left: 12px;
+}
+.profit-track {
+  height: 12px;
+  background: var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.profit-track span {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+}
+.profitability-donut {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-height: 270px;
+}
+.donut-plot {
+  height: 250px;
+  flex: 1;
+  min-width: 0;
+}
+.profitability-legend {
+  min-width: 150px;
+  display: grid;
+  gap: 22px;
+}
+.profitability-legend > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 14px;
+}
+.profitability-legend b {
+  grid-column: 1/-1;
+  font-weight: 500;
+}
+.profitability-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 7px;
+}
+.profitability-legend span {
+  color: var(--muted);
+}
+.unified-tooltip {
+  color: var(--text) !important;
+  background: var(--panel) !important;
+}
+.unified-tooltip strong,
+.unified-tooltip b {
+  color: var(--text) !important;
+}
+@media (max-width: 1100px) {
+  .chart-card .panel-head {
+    flex-wrap: wrap;
+    align-content: start;
+    min-height: 88px;
+  }
+  .chart-header-filters {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .profitability-donut {
+    gap: 10px;
+  }
+  .profitability-legend {
+    min-width: 125px;
+  }
+  .metric-grid {
+    column-gap: 20px;
+  }
+}
+@media (max-width: 700px) {
+  .timeline-filter {
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .timeline-filter .period-picker {
+    gap: 2px;
+  }
+  .timeline-filter .period-picker button {
+    min-width: 28px;
+    padding: 4px 6px;
+  }
+  .metric-grid {
+    padding: 10px 0 22px;
+    gap: 20px;
+  }
+  .metric-grid .metric {
+    min-height: 65px;
+  }
+  .metric-grid .metric strong {
+    font-size: 25px;
+  }
+  .metric-grid .metric-top {
+    font-size: 12px;
+  }
+  .chart-card .panel-head {
+    min-height: 88px;
+  }
+  .chart-header-filters {
+    flex-wrap: nowrap;
+  }
+  .chart-market {
+    max-width: 110px;
+  }
+  .chart-card .chart-headline {
+    font-size: 23px;
+  }
+  .chart-card .chart-controls {
+    flex-wrap: nowrap;
+  }
+  .chart-display {
+    gap: 8px;
+  }
+  .market-treemap {
+    height: 300px;
+  }
+  .profitability-donut {
+    flex-direction: column;
+  }
+  .donut-plot {
+    width: 100%;
+    height: 230px;
+    flex: auto;
+  }
+  .profitability-legend {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+  .sync-status {
+    align-items: flex-start;
+  }
+}

@@ -41,8 +41,13 @@ export function marketColor(id: number | string) {
   const i = ids.indexOf(Number(id));
   return `var(--cat-${((i < 0 ? Number(id) || 0 : i) % 8) + 1})`;
 }
+export function fundingInterval(m?: Raw) {
+  return Number(
+    m?.funding_interval_sec || m?.config?.funding_interval_sec || 0,
+  );
+}
 export function annualRate(m: Raw) {
-  const interval = m.config?.funding_interval_sec || m.funding_interval_sec;
+  const interval = fundingInterval(m);
   return m.rate != null && interval > 0
     ? (m.rate * 365 * 86400) / interval
     : null;

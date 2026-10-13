@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Perpl Analytics · Protocol & Wallet Intelligence",
   description:
-    "Live Perpl market analytics, risk monitoring and read-only wallet intelligence.",
+    "Perpl protocol analytics, market snapshots and public wallet intelligence on Monad.",
   openGraph: { title: "Perpl Analytics", images: ["/og.png"] },
   icons: {
     icon: "/favicon.svg",

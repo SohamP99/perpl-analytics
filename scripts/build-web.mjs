@@ -53,9 +53,8 @@ for (const file of [
   await copyFile(path.join(root, "public", file), path.join(out, file));
 await writeFile(
   path.join(out, "index.html"),
-  '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0d0c12"><title>Perpl Analytics</title><meta name="description" content="Perpl protocol, risk and wallet intelligence. Public data, clear coverage, live market prices."><meta property="og:title" content="Perpl Analytics"><meta property="og:description" content="Protocol intelligence with transparent data coverage."><meta property="og:image" content="https://perpl-analytics.vercel.app/og.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/dashboard.css"></head><body><div id="root"></div><script type="module" src="/dashboard.js"></script></body></html>',
+  '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0d0c12"><title>Perpl Analytics</title><meta name="description" content="Perpl protocol analytics, market snapshots and public wallet intelligence on Monad."><meta property="og:title" content="Perpl Analytics"><meta property="og:description" content="Protocol intelligence with transparent data coverage."><meta property="og:image" content="https://perpl-analytics.vercel.app/og.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/dashboard.css"></head><body><div id="root"></div><script type="module" src="/dashboard.js"></script></body></html>',
 );
 console.log(
   "Built Vercel frontend. Live operation requires the cloud backend and durable storage.",
 );
-

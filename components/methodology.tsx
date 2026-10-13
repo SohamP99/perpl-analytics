@@ -33,8 +33,8 @@ const metrics = [
     "AccountCreated event count. Registrations are not unique people.",
   ],
   [
-    "DAU / WAU / MAU",
-    "Distinct account IDs with fills on the latest day, or in the 7 / 30 UTC days ending on each date.",
+    "Active users",
+    "Distinct trading account IDs with fills on each UTC day. Accounts are not necessarily unique people.",
   ],
   ["Stickiness", "DAU divided by MAU."],
   [
@@ -51,7 +51,7 @@ const metrics = [
   ],
   [
     "Flow statistics",
-    "Amounts and event counts for collateral deposits and withdrawals. Recent detail collection starts with this release; full daily totals remain preserved.",
+    "Amounts and event counts for collateral deposits and withdrawals. Recent transaction details cover a shorter window than daily totals.",
   ],
   [
     "Liquidation count",
@@ -96,16 +96,14 @@ export default function Methodology({ protocol }: { protocol: Raw | null }) {
       <section className="panel">
         <h2>Sources and coverage</h2>
         <p>
-          Perpl public market data and WebSocket, public Monad contract reads,
+          Perpl public market data, public Monad contract reads,
           imported Dune summaries through 12 October 2026, and periodic
           HyperSync/RPC summaries thereafter. There are no recurring Dune API
           calls.
         </p>
         <p>
-          Aggregates refresh every five minutes. Perpl currently rejects this
-          website's WebSocket origin; market prices fall back to those
-          snapshots. The streaming client activates only when the provider
-          permits the connection. Live marks do not imply live wallet positions.
+          Snapshots target a five-minute refresh. Provider delays can affect
+          freshness; market prices and wallet positions may have different timestamps.
           Indexed through{" "}
           {protocol?.coverage?.throughTime
             ? new Date(protocol.coverage.throughTime).toISOString()
@@ -117,9 +115,7 @@ export default function Methodology({ protocol }: { protocol: Raw | null }) {
           reconstructed from daily totals. Counters use fixed current, daily or
           all-time windows. Each tab's timeframe changes only its time-series
           charts. Market selectors are local to charts with market-level data;
-          fees and registrations are protocol-wide. Historical wallet trades, exact
-          directional OI, insurance balances, builder attribution and conversion
-          rates are deferred until complete supporting data exists.
+          fees and registrations are protocol-wide.
         </p>
       </section>
       <section className="panel">
@@ -144,18 +140,18 @@ export default function Methodology({ protocol }: { protocol: Raw | null }) {
         </div>
       </section>
       <section className="panel">
-        <h2>Storage and updates</h2>
+        <h2>Privacy and history</h2>
         <p>
-          Daily historical summaries and account activity are retained. API
-          caches are bounded to 8 MiB of serialized payload and 512 entries. New
-          market state is sampled hourly with a 90-day window; recent flow
-          details retain at most 1,000 records / seven days. A 400 MiB database
-          guard preserves the checkpoint when indexing must pause.
+          No wallet connection or private key is required. Wallet searches send
+          the public address to our backend and data providers; results may be
+          cached. Watchlists and recent searches are saved in your browser.
+          Shared wallet links include the selected address. Hosting providers
+          may retain request logs; fonts are served by Google Fonts.
         </p>
         <p>
-          Funding history currently displays 30 days. Earlier API pagination is
-          a separate backfill; no earlier observations are fabricated. Raw
-          blocks and all-wallet trade-event history are not stored.
+          Daily historical summaries are retained. Recent transaction details
+          and funding history cover shorter windows. Daily totals cannot
+          reconstruct individual wallet trades.
         </p>
       </section>
     </>

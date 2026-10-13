@@ -2,12 +2,6 @@
 
 The prepared deployment uses Vercel Hobby for the frontend and Node functions, Supabase Free PostgreSQL for durable data, and Supabase Cron for five-minute refresh requests. It does not require the development PC to stay on or make recurring Dune queries.
 
-## Status
-
-Source is on the private GitHub repository `SohamP99/perpl-analytics`, branch `main`. The app is deployed at https://perpl-analytics.vercel.app on Vercel Hobby. Supabase Free PostgreSQL is connected with verified TLS, the historical seed is imported, and a five-minute Supabase Cron job is enabled. Public protocol, market, and wallet endpoints return HTTP 200. An authenticated refresh processed seven batches and advanced the checkpoint by 11,517 blocks. The automatic Supabase run at 16:35 IST on 13 October 2026 returned HTTP 200 and caught up through block 113024260. The next run is scheduled five minutes later; no local computer is needed.
-
-Google AI Studio's initial Get started screen was not proof of Starter eligibility. The actual publish flow asked to confirm a billing account. No Continue, paid upgrade or deployment was performed. Leave the old AI Studio environment-variable prompt unfilled. Do not force-push AI Studio's generated rewrite over the tested GitHub code.
-
 ## 1. Create a free database
 
 1. Sign in at https://supabase.com/dashboard.
@@ -63,18 +57,11 @@ Five minutes is a refresh target, not a guarantee: provider limits and backlog c
 
 ## Limits and verification
 
-Supabase Free includes 500 MB database storage and 5 GB egress and may pause inactive projects. The 400 MiB application guard pauses indexing and preserves the checkpoint; it does not increase any hosting quota. Free service limits can constrain traffic or availability. No paid plan or billing account is required for the proposed setup.
+The 400 MiB application guard pauses indexing and preserves the checkpoint; it does not increase hosting quotas. Monitor database size, egress and function usage in the provider dashboards. Free service limits can constrain traffic or availability; consult the linked provider documentation for current allowances.
 
-Verified locally:
+Run `npm run test:cloud`, `node tests/vercel-cloud.mjs`, `node tests/web-proxy.mjs` and `node tests/cache-bounds.mjs`. Confirm that public read endpoints return data, unauthenticated refresh requests return HTTP 401, and the scheduler receives successful responses. The database checkpoint is independent of Vercel deployments.
 
-- Frontend production build.
-- Complete historical seed parity between SQLite and embedded PostgreSQL.
-- Exact large integer amounts, transactional checkpoint updates, duplicate rejection, writer lease and durable retry cooldown.
-- Private PostgreSQL schema and Vercel route rewriting.
-- Public read routes, rejected mutations, and independent scheduler authentication.
-- A disposable live-provider test processed 1,164 blocks in about 3.5 seconds. This is not a hosted performance guarantee.
-
-Run `npm run test:cloud`, `node tests/vercel-cloud.mjs`, and `node tests/web-proxy.mjs`. Hosted checks confirmed TLS connectivity, seed import, public protocol/market/wallet responses, rejection of unauthenticated refresh requests, a manual update and an automatic scheduled update. The database checkpoint is independent of Vercel deployments.
+Permanent daily history is retained. API caches are capped at 8 MiB of serialized data and 512 entries; PostgreSQL overhead is additional. Market snapshots retain a 90-day hourly window, while recent flow details retain at most 1,000 records or seven days. These bounded detail windows do not prune permanent aggregates.
 
 ## References
 

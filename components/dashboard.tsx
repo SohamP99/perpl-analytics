@@ -294,9 +294,10 @@ export default function Dashboard() {
             {nav.view === "methodology" && <Methodology protocol={protocol} />}
           </Suspense>
           <footer>
-            <span>
+            <span className="footer-identity">
               <img className="footer-brand-logo" src="/perpl-logo.svg" alt="" />
               Perpl Analytics
+              <span className="footer-attribution">Data powered by <a href="https://envio.dev" target="_blank" rel="noreferrer">Envio HyperSync</a></span>
             </span>
             <div>
               <a

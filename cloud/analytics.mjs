@@ -8,10 +8,17 @@ export async function analyticsView(store) {
       const activity = (
         await db.query(`WITH a AS (SELECT day::date AS day,account,SUM(fills) fills FROM accounts GROUP BY day,account),
    firsts AS (SELECT account,min(day) first_day FROM a GROUP BY account),
-   days AS (SELECT DISTINCT day FROM a),
-   rolls AS (SELECT d.day,COUNT(DISTINCT a.account) mau,COUNT(DISTINCT a.account) FILTER (WHERE a.day>d.day-7) wau,COUNT(DISTINCT a.account) FILTER (WHERE a.day=d.day) dau FROM days d JOIN a ON a.day BETWEEN d.day-29 AND d.day GROUP BY d.day),
-   daily AS (SELECT a.day,SUM(a.fills) fills,COUNT(*) FILTER (WHERE a.day=f.first_day) new,COUNT(*) FILTER (WHERE a.day>f.first_day) AS "returning" FROM a JOIN firsts f USING(account) GROUP BY a.day)
-   SELECT (extract(epoch FROM r.day)*1000)::bigint t,r.dau,r.wau,r.mau,d.new,d."returning",d.fills FROM rolls r JOIN daily d USING(day) ORDER BY r.day`)
+   ordered AS (SELECT day,account,lead(day) OVER(PARTITION BY account ORDER BY day) next_day FROM a),
+   edges AS (
+     SELECT day,count(*) w,count(*) m FROM ordered GROUP BY day
+     UNION ALL SELECT least(day+7,next_day),-count(*),0 FROM ordered GROUP BY least(day+7,next_day)
+     UNION ALL SELECT least(day+30,next_day),0,-count(*) FROM ordered GROUP BY least(day+30,next_day)
+   ),
+   changes AS (SELECT day,sum(w) w,sum(m) m FROM edges GROUP BY day),
+   calendar AS (SELECT generate_series(min(day),max(day),interval '1 day')::date AS day FROM a),
+   rolls AS (SELECT c.day,sum(coalesce(e.w,0)) OVER(ORDER BY c.day) wau,sum(coalesce(e.m,0)) OVER(ORDER BY c.day) mau FROM calendar c LEFT JOIN changes e USING(day)),
+   daily AS (SELECT a.day,count(*) dau,SUM(a.fills) fills,COUNT(*) FILTER (WHERE a.day=f.first_day) new,COUNT(*) FILTER (WHERE a.day>f.first_day) AS "returning" FROM a JOIN firsts f USING(account) GROUP BY a.day)
+   SELECT (extract(epoch FROM r.day)*1000)::bigint t,coalesce(d.dau,0) dau,r.wau,r.mau,coalesce(d.new,0) new,coalesce(d."returning",0) AS "returning",coalesce(d.fills,0) fills FROM rolls r LEFT JOIN daily d USING(day) ORDER BY r.day`)
       ).rows.map((r) =>
         Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Number(v)])),
       );
@@ -78,3 +85,4 @@ export async function recordMarkets(store, ctx) {
       );
   });
 }
+

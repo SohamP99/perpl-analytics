@@ -18,11 +18,14 @@ try {
     "INSERT INTO accounts VALUES ('dune','2026-02-02','1',2),('dune','2026-02-02','2',3),('rpc','2026-02-09','1',4),('rpc','2026-02-09','3',5)",
   );
   const a = await analyticsView(store);
-  assert.equal(a.activity[1].dau, 2);
+  const latest = a.activity.at(-1);
+  assert.equal(latest.dau, 2);
+  assert.equal(latest.wau, 2);
+  assert.equal(latest.mau, 3);
+  assert.equal(latest.new, 1);
+  assert.equal(latest.returning, 1);
+  assert.equal(a.activity[1].dau, 0);
   assert.equal(a.activity[1].wau, 2);
-  assert.equal(a.activity[1].mau, 3);
-  assert.equal(a.activity[1].new, 1);
-  assert.equal(a.activity[1].returning, 1);
   assert.equal(
     a.cohorts.find((c) => c.cohort === "2026-02-02" && c.age === 1).active,
     1,

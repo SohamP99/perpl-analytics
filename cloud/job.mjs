@@ -25,7 +25,9 @@ export async function runJob(store,{env=process.env,makeSources,snapshot=async()
   if(retryAt>started)return {status:'cooldown',retryAt};
   if((await store.get('nextRun',0)||0)>started)return {status:'scheduled',nextRun:await store.get('nextRun')};
   await store.set('lastAttempt',started);await store.set('nextRun',started+INTERVAL);
-  if(await store.maintenance()>800*1024*1024)throw Object.assign(Error('Cloud storage safety limit reached; checkpoint retained'),{safeMessage:true});
+  const storageLimit=Number(env.PERPL_CLOUD_STORAGE_LIMIT_MB||400);
+  if(!Number.isFinite(storageLimit)||storageLimit<1)throw Error('Invalid cloud storage limit');
+  if(await store.maintenance()>storageLimit*1024*1024)throw Object.assign(Error('Cloud storage safety limit reached; checkpoint retained'),{safeMessage:true});
   const boundedFetch=(url,options={})=>fetch(url,{...options,signal:AbortSignal.any([signal,...(options.signal?[options.signal]:[])])});
   const rpc=new Rpc(env.PERPL_LIVE_RPC_URL||'https://rpc.monad.xyz',30,{attempts:1,timeoutMs:6000,signal});
   const hyper=env.ENVIO_API_TOKEN?new HyperSync(env.ENVIO_API_TOKEN,{fetcher:boundedFetch}):null;

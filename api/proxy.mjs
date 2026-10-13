@@ -1,7 +1,9 @@
 // Server-only Vercel adapter. Credentials never enter the frontend bundle.
 import {targetFor} from '../cloud/routes.mjs';
+import cloudHandler from '../cloud/vercel.mjs';
 export {targetFor} from '../cloud/routes.mjs';
 export default async function handler(req,res){
+ if(process.env.DATABASE_URL)return cloudHandler(req,res);
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  if(req.method!=='GET'){res.setHeader('Allow','GET');return res.status(405).json({error:'Read-only API'});}
  if(!process.env.PERPL_BACKEND_URL||!process.env.PERPL_BACKEND_TOKEN)return res.status(503).json({error:'Cloud backend is not configured'});

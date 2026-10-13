@@ -9,6 +9,7 @@ import {runJob} from './job.mjs';
 import {CloudWallet} from './wallet.mjs';
 import {SummaryEngine} from '../indexer/summary-engine.mjs';
 import {targetFor} from './routes.mjs';
+import {privatePool} from './database.mjs';
 export function authorized(header,secret){if(typeof secret!=='string'||secret.length<32||typeof header!=='string')return false;const a=Buffer.from(header),b=Buffer.from('Bearer '+secret);return a.length===b.length&&timingSafeEqual(a,b);}
 export function createHandler({store,publicData,wallet,readToken,jobToken,job=()=>runJob(store,{snapshot:()=>publicData.publicRead('/v1/pub/context')})}){
  let busy=false;
@@ -42,15 +43,23 @@ export function createHandler({store,publicData,wallet,readToken,jobToken,job=()
   }catch{return send(502,{error:'Cloud data service is temporarily unavailable'});}
  };
 }
-export async function main(){
+export async function createService(){
  const readToken=process.env.PERPL_BACKEND_TOKEN,jobToken=process.env.PERPL_JOB_TOKEN;
  if(!readToken||!jobToken||readToken.length<32||jobToken.length<32||readToken===jobToken)throw Error('Configure distinct backend and job tokens, at least 32 characters each');
- if(!process.env.DATABASE_URL&&!process.env.PGHOST)throw Error('Configure the Starter Tier PostgreSQL connection');
- const pool=new pg.Pool({...(process.env.DATABASE_URL?{connectionString:process.env.DATABASE_URL}:{}),max:4,idleTimeoutMillis:10000,connectionTimeoutMillis:8000,statement_timeout:4000});
+ if(!process.env.DATABASE_URL&&!process.env.PGHOST)throw Error('Configure the PostgreSQL connection');
+ const rawPool=new pg.Pool({...(process.env.DATABASE_URL?{connectionString:process.env.DATABASE_URL}:{}),max:2,idleTimeoutMillis:10000,connectionTimeoutMillis:8000,statement_timeout:4000});
+ rawPool.on('error',()=>{}); // Never log connection strings or credentials.
+ try{
+ const pool=await privatePool(rawPool);
  const store=new PostgresStore(pool);await store.init();
  if(!await store.get('cloudSeed')){const manifest=JSON.parse(readFileSync(new URL('./seed-manifest.json',import.meta.url),'utf8'));let bytes;try{bytes=readFileSync(new URL('./seed.json.gz',import.meta.url));}catch(e){if(e.code!=='ENOENT')throw e;bytes=Buffer.from(JSON.parse(readFileSync(new URL('./seed-data.json',import.meta.url),'utf8')).base64,'base64');}await importSeed(store,decodeSeed(bytes,manifest.sha256),manifest.sha256);}
  const publicData=new SummaryEngine(store),wallet=new CloudWallet(store,publicData);
- const server=createServer(createHandler({store,publicData,wallet,readToken,jobToken}));server.requestTimeout=60000;
+ return {store,handler:createHandler({store,publicData,wallet,readToken,jobToken})};
+ }catch(e){await rawPool.end();throw e;}
+}
+export async function main(){
+ const {store,handler}=await createService();
+ const server=createServer(handler);server.requestTimeout=60000;
  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(Number(process.env.PORT||8080),'0.0.0.0',resolve);});
  console.log('Perpl Pulse cloud backend ready');
  process.on('SIGTERM',()=>server.close(()=>store.close().finally(()=>process.exit(0))));

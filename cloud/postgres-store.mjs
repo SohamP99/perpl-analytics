@@ -5,7 +5,7 @@ const json=v=>JSON.stringify(v,(_,n)=>typeof n==='bigint'?n.toString():n);
 const clock="(extract(epoch from clock_timestamp())*1000)::bigint";
 export class PostgresStore {
  constructor(pool){this.pool=pool;}
- async init(){await this.pool.query(readFileSync(new URL('./schema.sql',import.meta.url),'utf8'));await this.pool.query('INSERT INTO settings VALUES ($1,$2),($3,$4) ON CONFLICT DO NOTHING',['next',json(boundary.toBlockExclusive),'hash',json(boundary.parentHash)]);}
+ async init(){await this.transaction(async db=>{await db.query('SELECT pg_advisory_xact_lock(143,202602)');await db.query(readFileSync(new URL('./schema.sql',import.meta.url),'utf8'));await db.query('INSERT INTO settings VALUES ($1,$2),($3,$4) ON CONFLICT DO NOTHING',['next',json(boundary.toBlockExclusive),'hash',json(boundary.parentHash)]);});}
  async get(key,fallback=null,db=this.pool){const r=await db.query('SELECT value FROM settings WHERE key=$1',[key]);return r.rows.length?r.rows[0].value:fallback;}
  async set(key,value,db=this.pool){await db.query('INSERT INTO settings VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=excluded.value',[key,json(value)]);}
  async transaction(fn,{readOnly=false}={}){const db=await this.pool.connect();try{await db.query(readOnly?'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY':'BEGIN');await db.query("SET LOCAL statement_timeout='4000ms'");const result=await fn(db);await db.query('COMMIT');return result;}catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}}

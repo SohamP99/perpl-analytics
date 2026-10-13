@@ -7,6 +7,13 @@ export default function Growth(p: TabProps) {
     last = activity.at(-1),
     cohorts = p.analytics?.cohorts || [],
     weeks = [...new Set(cohorts.map((r: Raw) => r.cohort))] as string[];
+  const transactions = p.analytics?.transactions,
+    txDays = new Map<number,Raw>((transactions?.daily || []).map((r:Raw)=>[r.t,r])),
+    activityDays = new Map<number,Raw>(activity.map((r:Raw)=>[r.t,r])),
+    daily = [...new Set([...activityDays.keys(),...txDays.keys()])].sort((a,b)=>a-b).map(t=>({
+      t, transactions:txDays.get(t)?.count ?? null,
+      dau:activityDays.get(t)?.dau ?? null, partial:txDays.get(t)?.partial,
+    }));
   return (
     <>
       <div className="metric-grid three">
@@ -34,15 +41,18 @@ export default function Growth(p: TabProps) {
       </div>
       <div className="secondary-grid">
         <ChartCard
-          title="Active accounts"
-          data={activity}
+          title="Daily transactions & users"
+          data={daily}
           series={[
-            { key: "dau", label: "DAU", aggregation: "last" },
-            { key: "wau", label: "WAU", aggregation: "last" },
-            { key: "mau", label: "MAU", aggregation: "last" },
+            { key: "transactions", label: "Trading transactions", kind: "bar" },
+            { key: "dau", label: "Active users", kind:"line", axis:"right", aggregation: "last", color:"var(--cat-2)" },
           ]}
           unit="count"
-          kind="line"
+          buckets={false}
+          leftLabel="Transactions"
+          rightLabel="Users"
+          filters={<span className="muted">{transactions?.from ? "Transactions since " + new Date(transactions.from.time).toLocaleDateString("en-GB",{day:"numeric",month:"short",timeZone:"UTC"}) : "Transaction tracking starting"}</span>}
+          note="Trading transactions are distinct on-chain transactions containing fills. Historical CSVs contain fill counts, not transaction counts. Earlier transaction values are unavailable; the first tracking day is partial. Users are distinct active trading accounts per UTC day."
           allowCumulative={false}
           loading={!p.analytics}
         />

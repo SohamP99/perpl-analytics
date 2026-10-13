@@ -3800,3 +3800,13 @@ footer {
     align-items: flex-start;
   }
 }
+
+/* Overview is a single compact metrics strip; narrow screens can swipe it. */
+.metric-grid.overview-metrics {display:flex;flex-wrap:nowrap;gap:20px;padding:18px 16px;background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow-x:auto;scrollbar-width:none;}
+.overview-metrics::-webkit-scrollbar {display:none;}
+.metric-grid.overview-metrics .metric {flex:1 0 112px;min-height:0;padding:0;}
+.metric-grid.overview-metrics .metric-top {font-size:11px;white-space:nowrap;margin-bottom:5px;}
+.metric-grid.overview-metrics .metric strong {font-size:23px;line-height:1.3;}
+.wallet-search-form {display:flex;gap:10px;width:100%;margin-top:16px;}
+.wallet-search-form input {flex:1;min-width:0;}
+@media(max-width:700px){.wallet-search-form {flex-wrap:wrap;}.wallet-search-form input {flex-basis:100%;}.metric-grid.overview-metrics {gap:24px;}.metric-grid.overview-metrics .metric {flex:0 0 120px;}}

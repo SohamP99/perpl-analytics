@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { boundary, summarize } from "../indexer/summary-spec.mjs";
 import { summaryView } from "../indexer/summary-view.mjs";
+import { tradingTransactionCounts } from "../indexer/transaction-summary.mjs";
 import {
   cacheKey,
   CACHE_BYTES,
@@ -179,6 +180,15 @@ export class PostgresStore {
       );
       if (time < previousTime)
         throw Error("Batch timestamp precedes checkpoint");
+      // Daily transaction counts and coverage advance atomically with the
+      // existing checkpoint. Replay/continuity protection prevents double counts.
+      if ((await this.get("transactionsFrom", null, db)) === null)
+        await this.set("transactionsFrom", { block: start, time: previousTime }, db);
+      await db.query(
+        `INSERT INTO daily_trading_transactions SELECT day,count FROM jsonb_to_recordset($1::jsonb) AS r(day text,count bigint)
+         ON CONFLICT(day) DO UPDATE SET count=daily_trading_transactions.count+excluded.count`,
+        [json(tradingTransactionCounts(rows))],
+      );
       await db.query(
         `INSERT INTO daily SELECT 'rpc',day,event,count,amounts FROM jsonb_to_recordset($1::jsonb) AS r(day text,event text,count bigint,amounts jsonb)
     ON CONFLICT(source,day,event) DO UPDATE SET count=daily.count+excluded.count,amounts=jsonb_build_array(

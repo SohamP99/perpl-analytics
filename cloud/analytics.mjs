@@ -1,6 +1,6 @@
 // Compact queries run once per refresh window, not once per chart or visitor.
 export async function analyticsView(store) {
-  const key = "analytics:v1",
+  const key = "analytics:v2",
     saved = await store.cache(key);
   if (saved && Date.now() - saved.at < 300000) return saved.data;
   const result = await store.transaction(
@@ -42,7 +42,16 @@ export async function analyticsView(store) {
           "SELECT f.*,a.address FROM recent_flow_details f LEFT JOIN account_addresses a USING(account) ORDER BY f.time DESC LIMIT 100",
         )
       ).rows.map((r) => ({ ...r, time: Number(r.time) }));
+      const from = await store.get("transactionsFrom", null, db),
+        through = await store.get("throughTime", null, db),
+        counts = new Map((await db.query("SELECT day,count FROM daily_trading_transactions ORDER BY day")).rows.map(r=>[r.day,Number(r.count)])),
+        transactionDays = [];
+      if (from && through >= from.time) {
+        for(let t=Math.floor(from.time/86400000)*86400000;t<=through;t+=86400000)
+          transactionDays.push({t,count:counts.get(new Date(t).toISOString().slice(0,10)) || 0,partial:t<from.time || t+86400000>through});
+      }
       return {
+        transactions: {from,through,daily:transactionDays},
         activity: activity.map((r) => ({
           ...r,
           stickiness: r.mau ? (r.dau / r.mau) * 100 : null,

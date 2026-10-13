@@ -24,6 +24,7 @@ export type Series = {
   aggregation?: "sum" | "mean" | "last";
   kind?: "line" | "bar";
   signed?: boolean;
+  axis?: "right";
 };
 export const count = (v: number) =>
   new Intl.NumberFormat("en-US", {
@@ -109,6 +110,8 @@ export function ChartCard({
   allowCumulative = true,
   baseline = 0,
   percentStack = false,
+  leftLabel,
+  rightLabel,
 }: {
   title: string;
   data: Raw[];
@@ -126,6 +129,8 @@ export function ChartCard({
   allowCumulative?: boolean;
   baseline?: number;
   percentStack?: boolean;
+  leftLabel?: string;
+  rightLabel?: string;
 }) {
   const { range, end } = useAnalytics(),
     [period, setPeriod] = useState("D"),
@@ -150,6 +155,7 @@ export function ChartCard({
       if (period === "M") date.setUTCDate(1);
       const t = buckets ? date.getTime() : row.t,
         d = map.get(t) || { t, __n: {} };
+      d.partial = d.partial || row.partial;
       for (const s of visible) {
         if (row[s.key] == null || !Number.isFinite(Number(row[s.key])))
           continue;
@@ -175,7 +181,7 @@ export function ChartCard({
         const next = new Date(d.t);
         if (period === "M") next.setUTCMonth(next.getUTCMonth() + 1);
         else next.setUTCDate(next.getUTCDate() + (period === "W" ? 7 : 1));
-        d.partial = next.getTime() > end;
+        d.partial = d.partial || next.getTime() > end;
         if (percent && sum > 0)
           for (const s of visible)
             if (d[s.key] != null) d[s.key] = (d[s.key] / sum) * 100;
@@ -468,7 +474,7 @@ export function ChartCard({
                 width={70}
                 tick={{ fontSize: 12, fill: "var(--muted)" }}
                 label={{
-                  value: percent
+                  value: leftLabel || (percent
                     ? "Share %"
                     : unit === "usd"
                       ? "USD"
@@ -478,7 +484,7 @@ export function ChartCard({
                           ? "Basis points"
                           : unit === "daily-traders"
                             ? "Avg / day"
-                            : "Count",
+                            : "Count"),
                   position: "insideTopLeft",
                   dy: -22,
                   fill: "var(--muted)",
@@ -500,6 +506,9 @@ export function ChartCard({
                   fontSize: 11,
                 }}
               />
+              {visible.some(s=>s.axis === "right") && <YAxis yAxisId="right" orientation="right" width={60}
+                tickFormatter={count} tick={{fontSize:12,fill:"var(--muted)"}}
+                label={{value:rightLabel || "Users",position:"insideTopRight",dy:-22,fill:"var(--muted)",fontSize:11}} />}
               <ReferenceLine yAxisId="value" y={0} stroke="var(--muted)" />
               <Tooltip
                 content={
@@ -516,7 +525,7 @@ export function ChartCard({
                 (s.kind || mode) === "line" ? (
                   <Line
                     key={s.key}
-                    yAxisId="value"
+                    yAxisId={s.axis === "right" ? "right" : "value"}
                     dataKey={s.key}
                     stroke={s.color || `var(--cat-${(i % 8) + 1})`}
                     dot={false}
@@ -527,7 +536,7 @@ export function ChartCard({
                 ) : (
                   <Bar
                     key={s.key}
-                    yAxisId="value"
+                    yAxisId={s.axis === "right" ? "right" : "value"}
                     dataKey={s.key}
                     stackId={stack ? "total" : undefined}
                     fill={s.color || `var(--cat-${(i % 8) + 1})`}

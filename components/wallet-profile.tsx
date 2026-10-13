@@ -38,8 +38,6 @@ export default function WalletProfile({
   markets,
   watch,
   toggleWatch,
-  compare,
-  setCompare,
   openWallet,
   search,
 }: {
@@ -47,8 +45,6 @@ export default function WalletProfile({
   markets: Raw[];
   watch: string[];
   toggleWatch: (a: string) => void;
-  compare: string[];
-  setCompare: (a: string[]) => void;
   openWallet: (a: string) => void;
   search: () => void;
 }) {
@@ -58,9 +54,7 @@ export default function WalletProfile({
     [notice, setNotice] = useState(""),
     [other, setOther] = useState(""),
     [reload, setReload] = useState(0);
-  const addresses = [address, ...compare]
-    .filter((a, i, aAll) => a && aAll.indexOf(a) === i)
-    .slice(0, 3);
+  const addresses = address ? [address] : [];
   useEffect(() => {
     let stop = false,
       running = false;
@@ -149,28 +143,12 @@ export default function WalletProfile({
             </>
           )}
         </div>
-        <div className="inline">
-          <input
-            aria-label="Compare wallet address"
-            placeholder="Add wallet to compare"
-            value={other}
-            onChange={(e) => setOther(e.target.value)}
-          />
-          <button
-            className="secondary"
-            disabled={
-              !/^0x[a-fA-F0-9]{40}$/.test(other) ||
-              addresses.length >= 3 ||
-              addresses.includes(other.toLowerCase())
-            }
-            onClick={() => {
-              setCompare([...compare, other.toLowerCase()]);
-              setOther("");
-            }}
-          >
-            Compare
-          </button>
-        </div>
+        <form className="wallet-search-form" onSubmit={e=>{e.preventDefault(); if(/^0x[a-fA-F0-9]{40}$/.test(other.trim())) openWallet(other.trim().toLowerCase());}}>
+          <input aria-label="Wallet address" placeholder="Enter wallet address" value={other} onChange={e=>setOther(e.target.value)} autoComplete="off" spellCheck={false} />
+          <button className="primary" type="submit" disabled={!/^0x[a-fA-F0-9]{40}$/.test(other.trim())}>Search</button>
+          <button className="secondary" type="button" disabled={!/^0x[a-fA-F0-9]{40}$/.test(other.trim()) || watch.includes(other.trim().toLowerCase())}
+            onClick={()=>{const a=other.trim().toLowerCase();if(!watch.includes(a)) toggleWatch(a);setNotice("Added to watchlist");}}>Add to watchlist</button>
+        </form>
         {notice && <p role="status">{notice}</p>}
         {error && <p className="alert">{error}</p>}
       </section>
@@ -330,80 +308,7 @@ export default function WalletProfile({
               )}
             </div>
           </section>
-          <section className="panel">
-            <h2>Historical coverage</h2>
-            <p>
-              Public leaderboard totals are available. Individual trades,
-              realised-PnL curves, win rate, hold time and equity drawdown are
-              not available from the imported protocol summaries.
-            </p>
-            <p className="chart-note">
-              No API key or wallet connection is required. Unavailable
-              performance metrics are intentionally omitted.
-            </p>
-          </section>
-          {addresses.length > 1 && (
-            <section className="panel">
-              <div className="panel-head">
-                <h2>Wallet comparison</h2>
-                <button className="secondary" onClick={() => setCompare([])}>
-                  Clear comparison
-                </button>
-              </div>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Metric</th>
-                      {addresses.map((a) => (
-                        <th key={a}>{short(a)}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      "Equity",
-                      "All-time PnL",
-                      "Volume",
-                      "ROI",
-                      "Current notional",
-                    ].map((label) => (
-                      <tr key={label}>
-                        <th>{label}</th>
-                        {addresses.map((a) => {
-                          const d = data[a],
-                            x = d ? walletValues(d, markets) : null,
-                            n =
-                              label === "Equity"
-                                ? x?.equity
-                                : label === "Current notional"
-                                  ? x?.notional
-                                  : d?.leaderboard?.found
-                                    ? d.leaderboard[
-                                        label === "All-time PnL"
-                                          ? "pnl"
-                                          : label === "Volume"
-                                            ? "volume"
-                                            : "roi"
-                                      ]
-                                    : null;
-                          return (
-                            <td key={a}>
-                              {label === "ROI" ? pct(n) : money(n)}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="chart-note">
-                Current values and all-time leaderboard performance. Historical
-                trade-level comparisons unavailable.
-              </p>
-            </section>
-          )}
+
         </>
       )}
     </>

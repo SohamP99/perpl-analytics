@@ -94,7 +94,6 @@ export default function Dashboard() {
     update({
       view: "wallet",
       address: a.toLowerCase(),
-      compare: [],
       drawer: "",
     });
     try {
@@ -285,8 +284,6 @@ export default function Dashboard() {
             {nav.view === "wallet" && (
               <WalletProfile
                 address={nav.address}
-                compare={nav.compare}
-                setCompare={(compare) => update({ compare })}
                 markets={markets}
                 watch={watch}
                 toggleWatch={toggleWatch}

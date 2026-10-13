@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import {PGlite} from '@electric-sql/pglite';
+import {PostgresStore} from '../cloud/postgres-store.mjs';
+import {analyticsView} from '../cloud/analytics.mjs';
+import {boundary} from '../indexer/summary-spec.mjs';
+import {tradingTransactionCounts} from '../indexer/transaction-summary.mjs';
+const pg=new PGlite(),pool={query:async(s,a)=>!a&&s.split(';').filter(x=>x.trim()).length>1?(await pg.exec(s)).at(-1):pg.query(s,a),connect:async()=>({...pool,release(){}})},store=new PostgresStore(pool);
+const hash=n=>'0x'+n.repeat(64), base=Date.parse(boundary.cutoff)+3600000;
+try {
+  await store.init(); await store.set('throughTime',base); await store.acquire('test');
+  const start=await store.get('next'),parent=await store.get('hash');
+  const fill=(i,tx)=>({id:tx+':'+i,tx,block:start,time:base+1000,name:'MakerOrderFilled',account:String(i+1),args:{}});
+  const rows=[fill(0,hash('a')),fill(1,hash('a')),fill(2,hash('b'))];
+  assert.equal(tradingTransactionCounts(rows)[0].count,2,'multiple fills in a transaction count once');
+  assert.equal(tradingTransactionCounts([{...rows[0],name:'AccountCreated'}]).length,0,'registration is not a trading transaction');
+  assert.throws(()=>tradingTransactionCounts([{...rows[0],tx:''}]),/transaction hash/);
+  const batch={start,end:start,hash:hash('1'),firstParentHash:parent,time:base+1000,rows};
+  await store.commit(batch,'test');
+  assert.equal(Number((await pool.query('SELECT count FROM daily_trading_transactions')).rows[0].count),2);
+  await assert.rejects(()=>store.commit(batch,'test'),/continuity/);
+  assert.equal(Number((await pool.query('SELECT count FROM daily_trading_transactions')).rows[0].count),2,'replay cannot increment counts');
+  const second={start:start+1,end:start+1,hash:hash('2'),firstParentHash:hash('1'),time:base+2000,rows:[{...fill(3,hash('c')),block:start+1,time:base+2000}]};
+  await store.commit(second,'test');
+  await store.commit({start:start+2,end:start+2,hash:hash('3'),firstParentHash:hash('2'),time:base+86400000,rows:[]},'test');
+  const view=await analyticsView(store);
+  assert.equal(view.transactions.daily.length,2);
+  assert.deepEqual(view.transactions.daily.map(r=>r.count),[3,0]);
+  assert.equal(view.transactions.from.time,base);
+  assert.equal(view.transactions.daily[0].partial,true);
+  assert.equal(view.transactions.daily[0].t,Math.floor(base/86400000)*86400000,'no fabricated pre-coverage zeros');
+  assert.equal(Number((await pool.query('SELECT count(*) n FROM recent_trading_transactions')).rows[0].n),0,'raw transaction hashes are not retained');
+  console.log('PASS: fill deduplication, atomic daily totals, replay protection, partial coverage and covered zero days');
+} finally {await pg.close();}

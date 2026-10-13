@@ -29,10 +29,6 @@ function read() {
     address: /^0x[a-fA-F0-9]{40}$/.test(p.get("address") || "")
       ? p.get("address")!.toLowerCase()
       : "",
-    compare: (p.get("compare") || "")
-      .split(",")
-      .filter((a) => /^0x[a-fA-F0-9]{40}$/.test(a))
-      .slice(0, 2),
     drawer: p.get("detail") || "",
   };
 }
@@ -66,7 +62,6 @@ export function useNavigation() {
     }
     if (n.view === "wallet") {
       if (n.address) p.set("address", n.address);
-      if (n.compare.length) p.set("compare", n.compare.join(","));
     }
     history.pushState(
       {},

@@ -19,3 +19,4 @@ CREATE TABLE IF NOT EXISTS market_history(bucket BIGINT,market TEXT,data JSONB N
 CREATE TABLE IF NOT EXISTS recent_flow_details(id TEXT PRIMARY KEY,time BIGINT,account TEXT,kind TEXT,amount TEXT,tx TEXT);
 CREATE INDEX IF NOT EXISTS recent_flows_time ON recent_flow_details(time);
 CREATE INDEX IF NOT EXISTS accounts_day ON accounts(day);
+CREATE TABLE IF NOT EXISTS daily_trading_transactions(day TEXT PRIMARY KEY,count BIGINT NOT NULL);

@@ -37,7 +37,7 @@ export default function Overview(p: TabProps) {
   ];
   return (
     <>
-      <div className="metric-grid">
+      <div className="metric-grid overview-metrics">
         <Metric
           title="Volume (24h)"
           value={money(
@@ -50,7 +50,7 @@ export default function Overview(p: TabProps) {
         <Metric title="Open interest" value={money(oi)} />
         <Metric title="Total value locked" value={money(net)} />
         <Metric
-          title="Fees collected (all time)"
+          title="Fees (all time)"
           value={money(
             p.protocol
               ? p.protocol.fees +
@@ -63,8 +63,8 @@ export default function Overview(p: TabProps) {
         <Metric
           title={
             activity?.mode === "rolling"
-              ? "Active traders (24h)"
-              : "Active traders (yesterday)"
+              ? "Traders (24h)"
+              : "Traders (yesterday)"
           }
           value={activity?.activeUsers?.toLocaleString() ?? "—"}
         />

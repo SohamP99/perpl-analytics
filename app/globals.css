@@ -3811,6 +3811,8 @@ footer {
 .wallet-search-form input {flex:1;min-width:0;}
 .footer-identity {flex-wrap:wrap;gap:6px;}
 .footer-attribution {display:inline-flex;align-items:center;gap:4px;margin-left:14px;color:var(--muted);}
-.footer-attribution a {display:inline;color:var(--purple);}
+.footer-attribution a {display:inline-flex;align-items:center;gap:7px;color:var(--purple);}
+.envio-logo-frame {position:relative;display:inline-block;width:90px;height:32px;overflow:hidden;border-radius:5px;flex-shrink:0;}
+.envio-logo-frame img {position:absolute;left:50%;top:50%;width:210px;height:auto;max-width:none;transform:translate(-50%,-50%);}
 @media(max-width:700px) {.footer-attribution {flex-basis:100%;margin:4px 0 0;}}
 @media(max-width:700px){.wallet-search-form {flex-wrap:wrap;}.wallet-search-form input {flex-basis:100%;}.metric-grid.overview-metrics {gap:24px;}.metric-grid.overview-metrics .metric {flex:0 0 120px;}}

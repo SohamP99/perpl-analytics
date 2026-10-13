@@ -297,7 +297,7 @@ export default function Dashboard() {
             <span className="footer-identity">
               <img className="footer-brand-logo" src="/perpl-logo.svg" alt="" />
               Perpl Analytics
-              <span className="footer-attribution">Data powered by <a href="https://envio.dev" target="_blank" rel="noreferrer">Envio HyperSync</a></span>
+              <span className="footer-attribution">Data powered by <a href="https://envio.dev" target="_blank" rel="noreferrer"><span className="envio-logo-frame"><img src="/envio-logo.png" alt="Envio" width="299" height="168" /></span><span>HyperSync</span></a></span>
             </span>
             <div>
               <a

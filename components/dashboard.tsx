@@ -1,56 +1,383 @@
-'use client';
-import {useEffect,useRef,useState} from 'react';
-import {ArrowRight,ArrowUpRight,BarChart3,Download,ExternalLink,Flame,Info,Layers,Moon,Search,Sun,TrendingUp,Wallet} from 'lucide-react';
-import {Raw,money,price,pct,short,normalize} from '@/lib/perpl';
-import {bucketVolume} from '@/lib/history';
-import {historicalMarkets} from '@/lib/historical-markets';
-import {Metric,Modal,Tag,COLORS,stamp} from './pulse-ui';
-import {usePerpl,useCandles} from '@/hooks/use-perpl';
-import {useProtocolSummary} from './summary-protocol';
-import {VolumeChart} from './volume-chart';
-import {AnalyticsChart,MarketMap,MarketBars,TraderCharts,downloadCsv} from './analytics-charts';
-import WalletExplorer from './wallet-explorer';
-import Liquidations from './liquidations';
-import FundingHistory from './funding-history';
-import {localRead} from './local-data';
-const sum=(a:Raw[],k:string)=>a.length&&a.every(m=>m[k]!=null)?a.reduce((s,m)=>s+m[k],0):null;
-function useFeed(path:string){const [value,setValue]=useState<Raw|null>(null);useEffect(()=>{let stop=false;const load=()=>{if(document.hidden)return;return localRead(path).then(d=>{if(!stop)setValue(d)}).catch(()=>{})};load();window.addEventListener('perpl-sync',load);return()=>{stop=true;window.removeEventListener('perpl-sync',load)}},[path]);return value}
-export default function Dashboard(){
- const {data:protocol,error:protocolError}=useProtocolSummary();const {ctx,markets,error,status,updated,now,nextSync}=usePerpl();
- const [view,setView]=useState('Protocol'),[section,setSection]=useState('Overview'),[period,setPeriod]=useState('1D'),[selected,setSelected]=useState('all'),[chartMode,setChartMode]=useState('bar'),[modal,setModal]=useState(false),[search,setSearch]=useState(''),[searchError,setSearchError]=useState(''),[address,setAddress]=useState(''),[theme,setTheme]=useState('dark');const searchRef=useRef<HTMLInputElement>(null);
- const {series:allSeries,daily:volumeDaily,loading,error:chartError}=useCandles(ctx,period,'all');
- const chartMarkets=ctx?historicalMarkets(ctx).map((m:Raw)=>normalize(m,ctx)):[];
- const series=selected==='all'?allSeries:bucketVolume(volumeDaily.map(d=>({t:d.t,v:d['m'+selected]||0})),period);
- const leaderboard=useFeed('leaderboard');
- const volume=sum(markets,'volume'),oi=sum(markets,'oi'),tvl=sum(markets,'tvl'),top=[...markets].sort((a,b)=>(b.oi||0)-(a.oi||0)),total=series.length?series.reduce((s,v)=>s+v.v,0):null;
- const hasHistory=protocol?.coverage?.historicalImported||protocol?.coverage?.throughTime,daily=protocol?.daily||[],hist=(v:number)=>hasHistory?money(v):'—';
- const activity=protocol?.activity24h;
- const seconds=Math.max(0,Math.ceil((nextSync-now)/1000)),countdown=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;
- useEffect(()=>{try{setTheme(localStorage.getItem('perpl-theme')==='light'?'light':'dark')}catch{}},[]);
- useEffect(()=>{document.documentElement.dataset.theme=theme;try{localStorage.setItem('perpl-theme',theme)}catch{}},[theme]);
- useEffect(()=>{const h=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();searchRef.current?.focus()}};window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h)},[]);
- function openWallet(a:string){setAddress(a);setSearch(a);setView('Wallets')}
- function find(e:React.FormEvent){e.preventDefault();if(!/^0x[a-fA-F0-9]{40}$/.test(search.trim())){setSearchError('Enter a valid wallet address.');return}setSearchError('');openWallet(search.trim().toLowerCase())}
- const picker=<div className="period-picker">{['1D','7D','1M'].map(p=><button key={p} aria-label={`${p} volume buckets`} aria-pressed={period===p} className={period===p?'active':''} onClick={()=>setPeriod(p)}>{p}</button>)}</div>;
- const volumePanel=<section className="panel volume-panel"><div className="volume-head"><div><h2>Total volume</h2><div className="chart-value">{loading?'—':money(total)}</div><p className="volume-subtitle">Since February 2026</p></div><div className="volume-controls"><div className="chart-mode-picker">{[['bar',BarChart3],['line',TrendingUp]].map(([mode,Icon]:any)=><button key={mode} className={chartMode===mode?'active':''} onClick={()=>setChartMode(mode)} aria-label={`${mode[0].toUpperCase()+mode.slice(1)} chart`} aria-pressed={chartMode===mode}><Icon size={15}/></button>)}</div>{picker}</div></div><div className="chart-toolbar"><span><i className="legend-dot"/>{selected==='all'?'All markets':chartMarkets.find((m:Raw)=>String(m.id)===selected)?.symbol}</span><select aria-label="Chart market" value={selected} onChange={e=>setSelected(e.target.value)}><option value="all">All markets</option>{chartMarkets.map((m:Raw)=><option key={m.id} value={m.id}>{m.symbol}</option>)}</select></div>{loading?<div className="chart-loading">Loading volume…</div>:<VolumeChart data={series} kind={chartMode} interval={period}/>}<p className="chart-note">{chartError||'UTC · current bucket partial'}</p></section>;
- return <div className="app-shell"><header className="header"><a href="/" className="brand" aria-label="Perpl Analytics home"><img className="brand-logo" src="/perpl-logo.svg" alt="Perpl"/><b>Perpl<span className="brand-light">Analytics</span></b></a><nav className="main-nav" aria-label="Primary">{[['Protocol',Layers],['Wallets',Wallet]].map(([v,Icon]:any)=><button key={v} className={view===v?'active':''} onClick={()=>setView(v)}><Icon size={16}/>{v}</button>)}</nav><div className="header-right"><button className="theme-toggle icon-btn" aria-label={`Switch to ${theme==='dark'?'light':'dark'} mode`} onClick={()=>setTheme(theme==='dark'?'light':'dark')}>{theme==='dark'?<Sun size={18}/>:<Moon size={18}/>}</button><span className="network"><img className="chain-logo" src="/monad-logo.svg" alt=""/>Monad</span><a className="trade-link" href="https://app.perpl.xyz/trade/BTC" target="_blank" rel="noreferrer">Trade <ArrowUpRight size={15}/></a></div></header>
- <div className="utility"><div className={'connection '+(error?'warn':'')}><i/><span>{updated?`Last sync ${new Date(updated).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'UTC'})} UTC`:'Connecting…'}</span><span className="utility-muted" data-testid="sync-countdown">{status==='Syncing'?'Syncing…':nextSync?`${error?'Retry':'Next sync'} in ${countdown}`:''}</span></div><form className="global-search" onSubmit={find}><Search size={15}/><input ref={searchRef} aria-label="Search wallet address" value={search} onChange={e=>{setSearch(e.target.value);setSearchError('')}} placeholder="Search any wallet address"/><kbd>Ctrl K</kbd><button type="submit" aria-label="Search wallet"><ArrowRight size={16}/></button></form></div>
- {searchError&&<div className="alert">{searchError}</div>}{error&&<div className="alert">{error}</div>}
- <main><div className="page-heading"><div><div className="eyebrow">PERPL INTELLIGENCE / {view.toUpperCase()}</div><h1>{view==='Protocol'?'The protocol, at a glance.':view==='Wallets'?'Every position. A clearer picture.':'Liquidations, in focus.'}</h1><p>{view==='Protocol'?'Capital, activity and risk. One clear view.':view==='Wallets'?'Explore any wallet. No connection needed.':'Track liquidation activity across Perpl.'}</p></div></div>
- {view==='Protocol'&&<><div className="view-bar"><div className="sub-nav">{['Overview','Markets','Fees','Capital flows','Growth','Risk & funding','Traders','Liquidations'].map(s=><button className={section===s?'active':''} onClick={()=>setSection(s)} key={s}>{s}</button>)}</div><span className="small muted">AUSD ≈ USD</span></div>
- {protocolError&&<p className="alert">Historical metrics are temporarily unavailable.</p>}
- {section==='Overview'&&<><div className="metric-grid"><Metric title="24h volume" value={money(volume)} note=""/><Metric title="Open interest" value={money(oi)} note=""/><Metric title="Protocol TVL" value={hist((protocol?.deposits||0)-(protocol?.withdrawals||0))} note="Net deposits"/><Metric title="Number of users" value={hasHistory?Number(protocol?.newAccounts).toLocaleString():'—'} note=""/></div><div className="section-label">{activity?.mode==='rolling'?'24h ending '+new Date(activity.to).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'UTC'})+' UTC':'Latest complete 24h period'}{activity?.from&&activity.mode!=='rolling'?' · '+new Date(activity.from).toLocaleDateString('en-GB',{day:'2-digit',month:'short',timeZone:'UTC'})+' UTC':''}</div><div className="metric-grid"><Metric title="Active trading accounts" value={activity?.activeUsers==null?'—':Number(activity.activeUsers).toLocaleString()} note="24h unique accounts"/><Metric title="Inflow" value={money(activity?.deposits)} note="24h"/><Metric title="Outflow" value={money(activity?.withdrawals)} note="24h"/><Metric title="Net flow" value={activity?money(activity.deposits-activity.withdrawals):'—'} note="24h"/></div><div className="chart-grid">{volumePanel}<section className="panel oi-panel"><div className="panel-head"><h2>Open interest by market</h2><Tag>Share</Tag></div><div className="composition-bar">{top.map((m,i)=><span key={m.id} title={`${m.symbol}: ${money(m.oi)}`} style={{width:`${oi?m.oi/oi*100:0}%`,background:COLORS[i%6]}}/>)}</div><div className="rank-list">{top.slice(0,6).map((m,i)=><button key={m.id} onClick={()=>{setSection('Markets')}}><span><i style={{background:COLORS[i%6]}}/>{m.symbol}</span><b>{money(m.oi)}</b><em>{oi?(m.oi/oi*100).toFixed(1):'—'}%</em></button>)}</div><button className="text-button" onClick={()=>setSection('Markets')}>Explore markets <ArrowRight size={14}/></button></section></div><div className="secondary-grid"><AnalyticsChart title="Trading fees" data={daily} series={[{key:'fees',label:'Fees'}]}/><AnalyticsChart title="User growth" data={daily} series={[{key:'newUsers',label:'Users'}]} unit="count" cumulative/></div></>}
- {section==='Markets'&&<><div className="secondary-grid"><AnalyticsChart title="Volume by market" data={volumeDaily} series={chartMarkets.map((m:Raw)=>({key:'m'+m.id,label:m.symbol}))} stack note={chartError}/><MarketMap markets={markets}/></div><MarketTable markets={markets}/></>}
- {section==='Fees'&&<><div className="metric-grid"><Metric title="Trading fees" value={hist(protocol?.fees)} note="Recorded history"/><Metric title="Builder fees" value={hist(protocol?.builderFees)} note="Recorded history"/><Metric title="Position protocol fees" value={hist(protocol?.positionProtocolFees)} note="Separate event category"/><Metric title="Insurance fees" value={hist(protocol?.insuranceFees)} note="Separate event category"/></div><div className="secondary-grid"><AnalyticsChart title="Trading fee trend" data={daily} series={[{key:'fees',label:'Trading'},{key:'builderFees',label:'Builder'}]} stack/><AnalyticsChart title="Position fee components" data={daily} series={[{key:'protocolFees',label:'Protocol'},{key:'insuranceFees',label:'Insurance'}]} stack/></div><p className="chart-note">Recorded fee categories; net protocol revenue is not reported.</p></>}
- {section==='Capital flows'&&<><div className="metric-grid three"><Metric title="Deposits" value={hist(protocol?.deposits)} note="Recorded history"/><Metric title="Withdrawals" value={hist(protocol?.withdrawals)} note="Recorded history"/><Metric title="Net inflows" value={hist((protocol?.deposits||0)-(protocol?.withdrawals||0))} note="Deposits less withdrawals"/></div><div className="secondary-grid"><AnalyticsChart title="Capital movement" data={daily} series={[{key:'deposits',label:'Deposits'},{key:'withdrawals',label:'Withdrawals',color:'var(--red)'}]}/><AnalyticsChart title="Net capital inflows" data={daily} series={[{key:'v',label:'Net inflows'}]}/></div></>}
- {section==='Growth'&&<div className="secondary-grid"><AnalyticsChart title="New users" data={daily} series={[{key:'newUsers',label:'Registrations'}]} unit="count"/><AnalyticsChart title="Maker fills" data={daily} series={[{key:'makerFills',label:'Maker fills'}]} unit="count"/><AnalyticsChart title="Taker fills" data={daily} series={[{key:'takerFills',label:'Taker fills'}]} unit="count"/></div>}
- {section==='Risk & funding'&&<><div className="secondary-grid"><MarketBars title="Funding per interval" markets={markets} field="rate"/><MarketBars title="Mark / oracle basis" markets={markets} field="basis"/><MarketBars title="Quoted spread" markets={markets} field="spread" unit="bps"/><FundingHistory markets={markets}/></div><MarketTable markets={markets}/></>}
- {section==='Liquidations'&&<Liquidations markets={markets} protocol={protocol} openWallet={openWallet}/>}
- {section==='Traders'&&<Traders snapshot={leaderboard} openWallet={openWallet}/>}</>}
- {view==='Wallets'&&<WalletExplorer mode="Wallets" address={address} setAddress={setAddress} setView={setView} markets={markets} ctx={ctx} search={()=>searchRef.current?.focus()}/>}
- <footer><span><img className="footer-brand-logo" src="/perpl-logo.svg" alt=""/>Perpl Analytics</span><div><button onClick={()=>setModal(true)}>Data & methodology</button><a href="https://docs.perpl.xyz/resources/for-developers/api" target="_blank" rel="noreferrer">API docs <ExternalLink size={12}/></a></div></footer></main>
- {modal&&<Modal title="Data status & methodology" close={()=>setModal(false)}><div className="coverage-list"><div><h3>Market & wallet snapshots</h3><p>Public Perpl API and read-only Monad contract calls. Five-minute cloud refresh. Last API fetch: {updated?stamp(updated)+' UTC':'connecting'}. Wallet snapshots refresh separately; failed reads retain their last successful values.</p></div><div><h3>Historical coverage</h3><p>Dune summaries: {protocol?.coverage?.historicalImported?'February 2026 through 12 October 2026':'not imported'}. Chain updates through {protocol?.coverage?.throughTime?stamp(protocol.coverage.throughTime)+' UTC':'the historical cutoff'}. {protocol?.coverage?.running?'Chain updates are processing.':''} {protocol?.coverage?.error||''}</p><p>Market refresh and historical catch-up are independent. A fresh API timestamp does not imply chain history has caught up.</p></div><div><h3>Users & fees</h3><p>Number of users counts AccountCreated events, matching Perpl’s Dune counter. This is registrations, not distinct people. Maker and taker fills are separate event counts, not additive unique trades. Fee categories are not combined into net revenue. AUSD is displayed at $1. Activity cards use the latest complete UTC day until the new collector has 24 continuous indexed hours. Then they switch to a minute-aligned rolling window ending at the displayed indexer cutoff. Active accounts are distinct accounts with fills, not necessarily distinct wallets. Historical Dune summaries provide the baseline. New indexed events extend fees, flows, registrations, fills and liquidation activity automatically. Metrics requiring ongoing manual CSV imports are excluded.</p></div><div><h3>Liquidations</h3><p>The activity chart counts all events in the covered summaries. Detailed records and liquidated value use only available saved event logs and can have historical gaps. Liquidated value uses liquidation execution price × liquidated size. Partial liquidations count as events. Unknown wallet addresses remain labelled by account ID.</p></div><div><h3>Wallet performance</h3><p>All-time PnL, ROI, volume and rank come from Perpl’s public leaderboard. Current unrealized PnL comes from contract reads. Individual trade history is not available here. Liquidation prices are estimates.</p></div><div><h3>Market history</h3><p>Volume history comes from public candles. Protocol TVL is cumulative collateral deposits less withdrawals, matching Perpl’s Dune definition. Per-market collateral is a different measure. Funding history comes from the public Perpl API (last 30 days). Directional OI, historical order-book depth, vault returns and market-share comparisons require additional sources.</p></div></div></Modal>}
- </div>
+"use client";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { Moon, Sun, Search } from "lucide-react";
+import { Raw, normalize } from "@/lib/perpl";
+import { historicalMarkets } from "@/lib/historical-markets";
+import { RANGES } from "@/lib/analytics";
+import { usePerpl, useCandles } from "@/hooks/use-perpl";
+import { useLiveMarkets } from "@/hooks/use-live-markets";
+import { useNavigation, useWatchlist, TABS } from "@/hooks/use-navigation";
+import { useProtocolSummary } from "./summary-protocol";
+import { localRead } from "./local-data";
+import { AnalyticsContext, TabProps } from "./analytics-context";
+import SyncStatus from "./sync-status";
+const Overview = lazy(() => import("./tabs/overview")),
+  Markets = lazy(() => import("./tabs/markets")),
+  Fees = lazy(() => import("./tabs/fees")),
+  Flows = lazy(() => import("./tabs/flows")),
+  Growth = lazy(() => import("./tabs/growth")),
+  Risk = lazy(() => import("./tabs/risk")),
+  Traders = lazy(() => import("./tabs/traders")),
+  Liquidations = lazy(() => import("./liquidations")),
+  WalletProfile = lazy(() => import("./wallet-profile")),
+  MarketDrawer = lazy(() => import("./market-drawer")),
+  Palette = lazy(() => import("./command-palette")),
+  Methodology = lazy(() => import("./methodology"));
+function useFeed(path: string) {
+  const [value, setValue] = useState<Raw | null>(null);
+  useEffect(() => {
+    let stop = false,
+      running = false;
+    const load = async () => {
+      if (document.hidden || running) return;
+      running = true;
+      try {
+        const d = await localRead(path);
+        if (!stop) setValue(d);
+      } catch {
+      } finally {
+        running = false;
+      }
+    };
+    load();
+    window.addEventListener("perpl-sync", load);
+    return () => {
+      stop = true;
+      window.removeEventListener("perpl-sync", load);
+    };
+  }, [path]);
+  return value;
 }
-function MarketTable({markets}:{markets:Raw[]}){const [filter,setFilter]=useState(''),[sort,setSort]=useState('volume');const rows=markets.filter((m:Raw)=>m.symbol.toLowerCase().includes(filter.toLowerCase())).sort((a,b)=>(b[sort]||0)-(a[sort]||0));return <section className="panel market-panel"><div className="panel-head"><h2>Market overview</h2><div className="table-controls"><div className="table-search"><Search size={14}/><input aria-label="Filter markets" placeholder="Filter markets" value={filter} onChange={e=>setFilter(e.target.value)}/></div><select aria-label="Sort markets" value={sort} onChange={e=>setSort(e.target.value)}><option value="volume">Volume ↓</option><option value="oi">Open interest ↓</option><option value="change">24h change ↓</option><option value="rate">Funding ↓</option></select><button className="icon-btn" aria-label="Export markets" onClick={()=>downloadCsv('perpl-markets.csv',['Market','Mark USD','24h volume','Open interest','Funding percent','Interval minutes'],rows.map((m:Raw)=>[m.symbol,m.price,m.volume,m.oi,m.rate,m.funding_interval_sec/60]))}><Download size={16}/></button></div></div><div className="table-wrap"><table><thead><tr><th>Market</th><th>Mark price</th><th>24h change</th><th>24h volume</th><th>Open interest</th><th>Funding</th><th>Spread</th></tr></thead><tbody>{rows.map((m,i)=><tr key={m.id}><td><span className="asset-icon" style={{color:COLORS[i%6]}}>{m.symbol==='BTC'?'₿':m.symbol==='ETH'?'Ξ':m.symbol.slice(0,1)}</span><a href={'https://app.perpl.xyz/trade/'+encodeURIComponent(m.symbol)} target="_blank" rel="noreferrer"><b>{m.symbol}</b></a></td><td>{price(m.price)}</td><td className={m.change<0?'red':'green'}>{pct(m.change)}</td><td>{money(m.volume)}</td><td>{money(m.oi)}</td><td>{pct(m.rate,4)} <span className="muted small">/ {m.funding_interval_sec/60}m</span></td><td>{m.spread?.toFixed(2)??'—'} bps</td></tr>)}</tbody></table>{!rows.length&&<div className="chart-empty">No matching markets</div>}</div></section>}
-function Traders({snapshot,openWallet}:{snapshot:Raw|null,openWallet:(a:string)=>void}){const [search,setSearch]=useState(''),[sort,setSort]=useState('v'),[page,setPage]=useState(0);const rows=(snapshot?.data?.d||[]).filter((r:Raw)=>r.a?.toLowerCase().includes(search.toLowerCase())).sort((a:Raw,b:Raw)=>Number(b[sort])-Number(a[sort]));useEffect(()=>setPage(0),[search,sort]);return <><TraderCharts rows={snapshot?.data?.d||[]}/><section className="panel"><div className="panel-head"><h2>Top traders</h2><Tag>All time · Perpl leaderboard</Tag></div><div className="table-controls trader-controls"><div className="table-search"><Search size={14}/><input aria-label="Filter traders" placeholder="Search wallet" value={search} onChange={e=>setSearch(e.target.value)}/></div><select aria-label="Sort traders" value={sort} onChange={e=>setSort(e.target.value)}><option value="v">Volume ↓</option><option value="p">PnL ↓</option><option value="r">ROI ↓</option></select></div><div className="table-wrap"><table><thead><tr><th>Volume rank</th><th>Wallet</th><th>All-time PnL</th><th>ROI</th><th>Volume</th></tr></thead><tbody>{rows.slice(page*20,(page+1)*20).map((r:Raw)=><tr key={r.a}><td>{r.i}</td><td><button className="wallet-link" title={r.a} onClick={()=>openWallet(r.a)}>{short(r.a)}</button></td><td className={Number(r.p)<0?'red':'green'}>{money(Number(r.p)/1e6)}</td><td>{pct(Number(r.r)/100)}</td><td>{money(Number(r.v)/1e6)}</td></tr>)}</tbody></table>{!rows.length&&<div className="chart-empty">{snapshot?'No matching traders':'Leaderboard unavailable'}</div>}</div><div className="pagination"><span>{rows.length.toLocaleString()} listed wallets{snapshot?.stale?' · saved snapshot':''}</span><div><button className="secondary" disabled={page===0} onClick={()=>setPage(p=>p-1)}>Previous</button><span>{page+1}</span><button className="secondary" disabled={(page+1)*20>=rows.length} onClick={()=>setPage(p=>p+1)}>Next</button></div></div></section></>}
+export default function Dashboard() {
+  const { nav, update } = useNavigation(),
+    { watch, toggleWatch } = useWatchlist(),
+    { data: protocol, error: protocolError } = useProtocolSummary(),
+    { ctx, error, status, updated, nextSync } = usePerpl(),
+    { markets, connected } = useLiveMarkets(ctx),
+    {
+      daily: volumeDaily,
+      loading,
+      error: chartError,
+    } = useCandles(ctx, "1D", "all"),
+    leaderboard = useFeed("leaderboard"),
+    analytics = useFeed("analytics"),
+    [theme, setTheme] = useState("dark"),
+    [palette, setPalette] = useState(false),
+    [mobileFilters, setMobileFilters] = useState(false);
+  const chartMarkets = ctx
+    ? historicalMarkets(ctx).map((m) => normalize(m, ctx))
+    : [];
+  useEffect(() => {
+    try {
+      setTheme(
+        localStorage.getItem("perpl-theme") === "light" ? "light" : "dark",
+      );
+    } catch {}
+  }, []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("perpl-theme", theme);
+    } catch {}
+  }, [theme]);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setPalette(true);
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, []);
+  const openWallet = (a: string) => {
+    update({
+      view: "wallet",
+      address: a.toLowerCase(),
+      compare: [],
+      drawer: "",
+    });
+    try {
+      const old = JSON.parse(localStorage.getItem("perpl-recent") || "[]");
+      localStorage.setItem(
+        "perpl-recent",
+        JSON.stringify([a, ...old.filter((v: string) => v !== a)].slice(0, 8)),
+      );
+    } catch {}
+  };
+  const openMarket = (id: string) => update({ view: "protocol", drawer: id }),
+    props: TabProps = {
+      protocol,
+      markets,
+      volumeDaily,
+      chartMarkets,
+      loading,
+      chartError,
+      analytics,
+      leaderboard,
+      openWallet,
+      openMarket,
+      watch,
+      toggleWatch,
+    };
+  const tabs: Record<string, React.ComponentType<TabProps>> = {
+    Overview,
+    Markets,
+    Fees,
+    "Capital flows": Flows,
+    "Users & activity": Growth,
+    "Risk & funding": Risk,
+    Traders,
+  };
+  const Tab = tabs[nav.tab];
+  return (
+    <AnalyticsContext.Provider
+      value={{
+        range: nav.range,
+        end: protocol?.coverage?.throughTime || updated || Date.now(),
+        market: nav.market,
+        markets,
+        openMarket,
+      }}
+    >
+      <div className="app-shell">
+        <header className="header">
+          <a href="/" className="brand" aria-label="Perpl Analytics home">
+            <img className="brand-logo" src="/perpl-logo.svg" alt="" />
+            <b>
+              Perpl<span className="brand-light">Analytics</span>
+            </b>
+          </a>
+          <nav className="main-nav" aria-label="Primary">
+            <button
+              className={nav.view === "protocol" ? "active" : ""}
+              onClick={() => update({ view: "protocol" })}
+            >
+              Protocol
+            </button>
+            <button
+              className={
+                nav.view === "wallet" ? "wallet-nav active" : "wallet-nav"
+              }
+              onClick={() => update({ view: "wallet", drawer: "" })}
+            >
+              Wallets
+            </button>
+          </nav>
+          <div className="header-right">
+            <button
+              className="search-trigger secondary"
+              onClick={() => setPalette(true)}
+              aria-label="Search wallets markets and tabs"
+            >
+              <Search size={16} />
+              <span>Search</span>
+              <kbd>
+                {typeof navigator !== "undefined" &&
+                /Mac/.test(navigator.platform)
+                  ? "⌘"
+                  : "Ctrl "}
+                K
+              </kbd>
+            </button>
+            <button
+              className="theme-toggle icon-btn"
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <span className="network">
+              <img className="chain-logo" src="/monad-logo.svg" alt="" />
+              Monad
+            </span>
+          </div>
+        </header>
+        <main>
+          <div className="compact-heading">
+            <div>
+              <span className="eyebrow">
+                {nav.view === "protocol"
+                  ? "Protocol / " + nav.tab
+                  : nav.view === "wallet"
+                    ? "Wallet intelligence"
+                    : "Data & methodology"}
+              </span>
+              <h1>
+                {nav.view === "protocol"
+                  ? nav.tab
+                  : nav.view === "wallet"
+                    ? "Wallet explorer"
+                    : "Methodology"}
+              </h1>
+            </div>
+            <SyncStatus
+              updated={updated}
+              nextSync={nextSync}
+              status={status}
+              live={connected}
+            />
+          </div>
+          {error && <div className="alert">{error}</div>}
+          {nav.view === "protocol" && (
+            <>
+              <nav className="sub-nav" aria-label="Protocol sections">
+                {TABS.map((t) => (
+                  <button
+                    className={nav.tab === t ? "active" : ""}
+                    key={t}
+                    onClick={() => update({ tab: t })}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </nav>
+              <div
+                className={
+                  "global-filters " + (mobileFilters ? "expanded" : "")
+                }
+              >
+                <button
+                  className="mobile-filter-trigger secondary"
+                  onClick={() => setMobileFilters(!mobileFilters)}
+                >
+                  Filters · {nav.range} {mobileFilters ? "×" : ""}
+                </button>
+                <div className="filter-content">
+                  <div className="period-picker" aria-label="Date range">
+                    {RANGES.map((r) => (
+                      <button
+                        key={r}
+                        aria-pressed={nav.range === r}
+                        className={r === nav.range ? "active" : ""}
+                        onClick={() => update({ range: r })}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                  <label>
+                    Market{" "}
+                    <select
+                      aria-label="Global market filter"
+                      value={nav.market}
+                      onChange={(e) => update({ market: e.target.value })}
+                    >
+                      <option value="all">All markets</option>
+                      {chartMarkets.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.symbol}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <span className="muted">UTC · AUSD ≈ USD</span>
+                </div>
+              </div>
+              {nav.market !== "all" && (
+                <p className="chart-note">
+                  Market filter applies to market-level charts and liquidation
+                  details. Protocol fees, flows and account activity remain
+                  all-market totals.
+                </p>
+              )}
+              {protocolError && (
+                <div className="alert">
+                  Historical summaries could not refresh.{" "}
+                  <button
+                    onClick={() =>
+                      window.dispatchEvent(new Event("perpl-sync"))
+                    }
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+              <Suspense
+                fallback={
+                  <div
+                    className="skeleton chart-skeleton"
+                    aria-label="Loading view"
+                  />
+                }
+              >
+                {nav.tab === "Liquidations" ? (
+                  <Liquidations
+                    markets={markets}
+                    protocol={protocol}
+                    openWallet={openWallet}
+                  />
+                ) : (
+                  Tab && <Tab {...props} />
+                )}
+              </Suspense>
+            </>
+          )}
+          <Suspense fallback={<div className="skeleton chart-skeleton" />}>
+            {nav.view === "wallet" && (
+              <WalletProfile
+                address={nav.address}
+                compare={nav.compare}
+                setCompare={(compare) => update({ compare })}
+                markets={markets}
+                watch={watch}
+                toggleWatch={toggleWatch}
+                openWallet={openWallet}
+                search={() => setPalette(true)}
+              />
+            )}{" "}
+            {nav.view === "methodology" && <Methodology protocol={protocol} />}
+          </Suspense>
+          <footer>
+            <span>
+              <img className="footer-brand-logo" src="/perpl-logo.svg" alt="" />
+              Perpl Analytics
+            </span>
+            <div>
+              <a
+                href="/methodology"
+                onClick={(e) => {
+                  e.preventDefault();
+                  update({ view: "methodology", drawer: "" });
+                }}
+              >
+                Data & methodology
+              </a>
+              <a
+                href="https://docs.perpl.xyz/resources/for-developers/api"
+                target="_blank"
+                rel="noreferrer"
+              >
+                API docs ↗
+              </a>
+            </div>
+          </footer>
+        </main>
+        <Suspense fallback={null}>
+          {nav.drawer && nav.view === "protocol" && (
+            <MarketDrawer
+              id={nav.drawer}
+              markets={chartMarkets.map(
+                (m) => markets.find((x: Raw) => x.id === m.id) || m,
+              )}
+              analytics={analytics}
+              close={() => update({ drawer: "" })}
+              openWallet={openWallet}
+            />
+          )}{" "}
+          {palette && (
+            <Palette
+              close={() => setPalette(false)}
+              openWallet={openWallet}
+              openMarket={openMarket}
+              openTab={(tab) => update({ view: "protocol", tab, drawer: "" })}
+              markets={markets}
+              watch={watch}
+              leaderboard={leaderboard}
+            />
+          )}
+        </Suspense>
+      </div>
+    </AnalyticsContext.Provider>
+  );
+}

@@ -14,6 +14,9 @@ export function databaseConnection(env=process.env){
  if(!env.DATABASE_URL)return {};
  const url=new URL(env.DATABASE_URL);
  if(url.hostname.endsWith('.pooler.supabase.com')){
+  // Serverless instances must not reserve one database session each.
+  // Upgrade previously saved session-pooler URIs to transaction pooling.
+  url.port='6543';
   // Official Supabase CA from the project's Database > SSL configuration.
   // pg's URI parser otherwise overwrites explicit TLS options with sslmode.
   for(const key of ['sslmode','sslrootcert','sslcert','sslkey'])url.searchParams.delete(key);
@@ -58,7 +61,7 @@ export async function createService(){
  const readToken=process.env.PERPL_BACKEND_TOKEN,jobToken=process.env.PERPL_JOB_TOKEN;
  if(!readToken||!jobToken||readToken.length<32||jobToken.length<32||readToken===jobToken)throw Error('Configure distinct backend and job tokens, at least 32 characters each');
  if(!process.env.DATABASE_URL&&!process.env.PGHOST)throw Error('Configure the PostgreSQL connection');
- const rawPool=new pg.Pool({...databaseConnection(),max:2,idleTimeoutMillis:10000,connectionTimeoutMillis:8000,statement_timeout:4000});
+ const rawPool=new pg.Pool({...databaseConnection(),max:1,idleTimeoutMillis:1000,connectionTimeoutMillis:8000,statement_timeout:4000});
  rawPool.on('error',()=>{}); // Never log connection strings or credentials.
  try{
  const pool=await privatePool(rawPool);

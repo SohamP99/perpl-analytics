@@ -1,5 +1,5 @@
 // Use a private schema, outside Supabase's public REST API.
-// Configure Supabase's SESSION pooler (port 5432), not its transaction pooler.
+// SET LOCAL is transaction-scoped so Supabase's transaction pooler is safe.
 export async function privatePool(pool){
  const setup=await pool.connect();
  try{
@@ -10,10 +10,16 @@ export async function privatePool(pool){
  return {
   async connect(){
    const client=await pool.connect();
-   try{await client.query('SET search_path TO perpl, pg_catalog');return client;}
-   catch(e){client.release();throw e;}
+   return {
+    async query(sql,args){
+     const result=await client.query(sql,args);
+     if(/^BEGIN\b/i.test(sql))await client.query('SET LOCAL search_path TO perpl, pg_catalog');
+     return result;
+    },
+    release:()=>client.release(),
+   };
   },
-  async query(sql,args){const client=await this.connect();try{return await client.query(sql,args);}finally{client.release();}},
+  async query(sql,args){const client=await this.connect();try{await client.query('BEGIN');const result=await client.query(sql,args);await client.query('COMMIT');return result;}catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}},
   end:()=>pool.end(),
  };
 }
